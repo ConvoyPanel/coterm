@@ -1,0 +1,9 @@
+services:
+  workspace:
+    image: node:18
+    tty: true
+    volumes:
+      - .:/workspace
+    working_dir: /workspace
+    ports:
+      - 1234:1234
