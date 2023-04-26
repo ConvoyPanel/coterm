@@ -6,9 +6,9 @@ use axum::{
     routing::{get, get_service},
     Router,
 };
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::{net::SocketAddr, path::PathBuf};
-use tokio::{join, sync::oneshot};
+use tokio::{join, sync::Mutex, task};
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::ServeDir;
 use tungstenite::Message as TMessage;
@@ -48,16 +48,21 @@ async fn handle_socket(mut _client_ws: WebSocket) {
     println!("handle_socket");
 
     let client_to_remote_handle = || async {
-        let remote_ws = remote_ws.clone();
-        let client_ws = client_ws.clone();
+        println!("what the hell");
+        let remote_ws = Arc::clone(&remote_ws);
+        let client_ws = Arc::clone(&client_ws);
 
-        let mut client_guard = client_ws.lock().unwrap();
+        println!("client_to_remote_handle");
+
+        let mut client_guard = client_ws.lock().await;
 
         while let Some(msg) = client_guard.recv().await {
             let result = remote_ws
                 .lock()
-                .unwrap()
+                .await
                 .write_message(TMessage::binary(msg.unwrap().into_data()));
+
+            println!("client_to_remote_handle: {:?}", result);
 
             if result.is_err() {
                 // Handle error
@@ -67,15 +72,15 @@ async fn handle_socket(mut _client_ws: WebSocket) {
     };
 
     let remote_to_client_handle = || async {
-        let remote_ws = remote_ws.clone();
-        let client_ws = client_ws.clone();
+        let remote_ws = Arc::clone(&remote_ws);
+        let client_ws = Arc::clone(&client_ws);
 
-        let mut remote_guard = remote_ws.lock().unwrap();
+        let mut remote_guard = remote_ws.lock().await;
 
         while let Ok(msg) = remote_guard.read_message() {
             let result = client_ws
                 .lock()
-                .unwrap()
+                .await
                 .send(axum::extract::ws::Message::Binary(msg.into_data()))
                 .await;
 
