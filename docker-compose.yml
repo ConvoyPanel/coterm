@@ -1,9 +1,10 @@
 services:
   workspace:
-    image: node:18
+    build: .
     tty: true
     volumes:
       - .:/workspace
     working_dir: /workspace
     ports:
+      - 3000:3000
       - 1234:1234

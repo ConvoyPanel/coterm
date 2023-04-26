@@ -10,9 +10,11 @@ path = "src-rust/main.rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-axum = "0.6.16"
+axum = { version = "0.6.16", features = ["ws"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.96"
 tokio = { version = "1.27.0", features = ["full"] }
 tower-http = { version = "0.4.0", features = ["cors", "fs"] }
 tower = "0.4.13"
+tokio-tungstenite = "0.18.0"
+tungstenite = {version = "0.19.0", features = ["native-tls"]}
