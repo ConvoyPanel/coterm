@@ -18,3 +18,5 @@ tower-http = { version = "0.4.0", features = ["cors", "fs"] }
 tower = "0.4.13"
 tokio-tungstenite = {version = "0.18.0", features = ["native-tls"]}
 futures-util = "0.3.28"
+httparse = "1.8.0"
+base64 = "0.21.0"

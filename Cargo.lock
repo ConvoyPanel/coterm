@@ -143,7 +143,9 @@ name = "coterm"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "base64 0.21.0",
  "futures-util",
+ "httparse",
  "serde",
  "serde_json",
  "tokio",
