@@ -1,18 +1,22 @@
+use axum::extract::ws::{Message as AMessage, CloseFrame as ACloseFrame};
 use axum::{
     body::{boxed, Body, BoxBody},
     extract::ws::{WebSocket, WebSocketUpgrade},
     http::{Request, Response, StatusCode, Uri},
     response::IntoResponse,
-    routing::{get, get_service},
+    routing::get,
     Router,
 };
-use std::sync::Arc;
+use futures_util::{sink::SinkExt, stream::StreamExt};
 use std::{net::SocketAddr, path::PathBuf};
-use tokio::{join, sync::Mutex, task};
+use tokio::join;
+use tokio_tungstenite::{connect_async, tungstenite::{
+    Message as TMessage,
+    protocol::CloseFrame as TCloseFrame,
+    protocol::frame::coding::CloseCode as TCloseCode,
+}};
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::ServeDir;
-use tungstenite::Message as TMessage;
-//use futures::future::join_all;
 
 #[tokio::main]
 async fn main() {
@@ -21,6 +25,7 @@ async fn main() {
     let assets_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("dist");
 
     let app = Router::new()
+        .route("/demo", get(demo))
         .route("/ws", get(ws_upgrader_handler))
         .route("/test", get(|| async { "Hi from /foo" }))
         .nest_service("/", ServeDir::new(assets_dir))
@@ -35,68 +40,93 @@ async fn main() {
         .unwrap();
 }
 
+async fn demo(ws: WebSocketUpgrade) -> impl IntoResponse {
+    ws.on_upgrade(|mut socket: WebSocket| async move {
+        while let Some(msg) = socket.recv().await {
+            let msg = if let Ok(msg) = msg {
+                msg
+            } else {
+                // client disconnected
+                return;
+            };
+
+            println!("demo ws msg received: {:?}", msg);
+
+            if socket.send("please don't contact me again. I'm on the no-call list".into()).await.is_err() {
+                // client disconnected
+                return;
+            }
+        }
+    })
+}
+
 async fn ws_upgrader_handler(ws: WebSocketUpgrade) -> impl IntoResponse {
     ws.on_upgrade(handle_socket)
 }
 
-async fn handle_socket(mut _client_ws: WebSocket) {
-    let (_remote_ws, _) = tungstenite::connect("wss://socketsbay.com/wss/v2/1/demo/")
-        .expect("Failed to connect to remote URL");
-    let remote_ws = Arc::new(Mutex::new(_remote_ws));
-    let client_ws = Arc::new(Mutex::new(_client_ws));
+async fn handle_socket(client_socket: WebSocket) {
+    let (mut client_sender, mut client_receiver) = client_socket.split();
 
-    println!("handle_socket");
+    let (remote_socket, _) = connect_async("ws://localhost:3000/demo")
+        .await
+        .expect("Failed to connect to remote websocket");
+    let (mut remote_sender, mut remote_receiver) = remote_socket.split();
 
-    let client_to_remote_handle = || async {
-        println!("what the hell");
-        let remote_ws = Arc::clone(&remote_ws);
-        let client_ws = Arc::clone(&client_ws);
+    // send from client to remote and back
+    let client_to_remote = async {
+        while let Some(Ok(msg)) = client_receiver.next().await {
+            println!("client_to_remote: {:?}", msg);
 
-        println!("client_to_remote_handle");
-
-        let mut client_guard = client_ws.lock().await;
-
-        while let Some(msg) = client_guard.recv().await {
-            let result = remote_ws
-                .lock()
+            remote_sender
+                .send(convert_axum_to_tungstenite(msg))
                 .await
-                .write_message(TMessage::binary(msg.unwrap().into_data()));
-
-            println!("client_to_remote_handle: {:?}", result);
-
-            if result.is_err() {
-                // Handle error
-                break;
-            }
+                .unwrap();
         }
     };
 
-    let remote_to_client_handle = || async {
-        let remote_ws = Arc::clone(&remote_ws);
-        let client_ws = Arc::clone(&client_ws);
+    // send from remote to client and back
+    let remote_to_client = async {
+        while let Some(Ok(msg)) = remote_receiver.next().await {
+            println!("remote_to_client: {:?}", msg);
 
-        let mut remote_guard = remote_ws.lock().await;
-
-        while let Ok(msg) = remote_guard.read_message() {
-            let result = client_ws
-                .lock()
+            client_sender
+                .send(convert_tungstenite_to_axum(msg))
                 .await
-                .send(axum::extract::ws::Message::Binary(msg.into_data()))
-                .await;
-
-            if result.is_err() {
-                // Handle error
-                break;
-            }
+                .unwrap();
         }
     };
 
-    tokio::select! {
-        _ = client_to_remote_handle() => {
-            println!("client disconnected");
+    join!(client_to_remote, remote_to_client);
+}
+
+fn convert_axum_to_tungstenite(axum_msg: AMessage) -> TMessage {
+    match axum_msg {
+        AMessage::Binary(payload) => TMessage::Binary(payload.to_vec()),
+        AMessage::Text(payload) => TMessage::Text(payload),
+        AMessage::Ping(payload) => TMessage::Ping(payload),
+        AMessage::Pong(payload) => TMessage::Pong(payload),
+        AMessage::Close(Some(ACloseFrame { code, reason })) => {
+            let close_frame = TCloseFrame {
+                code: TCloseCode::from(code),
+                reason: reason.into(),
+            };
+            TMessage::Close(Some(TCloseFrame::from(close_frame)))
         }
-        _ = remote_to_client_handle() => {
-            println!("remote disconnected");
-        }
+        AMessage::Close(None) => TMessage::Close(None),
+    }
+}
+
+fn convert_tungstenite_to_axum(tungstenite_msg: TMessage) -> AMessage {
+    match tungstenite_msg {
+        TMessage::Binary(payload) => AMessage::Binary(payload.into()),
+        TMessage::Text(payload) => AMessage::Text(payload),
+        TMessage::Ping(payload) => AMessage::Ping(payload.into()),
+        TMessage::Pong(payload) => AMessage::Pong(payload.into()),
+        TMessage::Close(payload) => {
+            let (code, reason) = payload.map(|c| (c.code, c.reason)).unwrap_or((TCloseCode::from(1000), String::new().into()));
+            let close_frame = ACloseFrame { code: code.into(), reason };
+            AMessage::Close(Some(close_frame))
+        },
+        TMessage::Frame(_) => panic!("Frame messages are not supported"),
     }
 }
