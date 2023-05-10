@@ -146,9 +146,16 @@ async fn handle_socket(client_socket: WebSocket) {
 
     // send from client to remote and back
     let client_to_remote = async {
+        let mut already_intercepted_auth_method = false;
         while let Some(Ok(msg)) = client_receiver.next().await {
             println!("client_to_remote: {:?}", msg);
             let remote_sender = remote_sender.clone();
+
+            if msg == AMessage::Binary(vec![1]) && !already_intercepted_auth_method {
+                println!("Intercepted auth method selection");
+                already_intercepted_auth_method = true;
+                continue;
+            }
 
             remote_sender
                 .lock()
@@ -208,10 +215,11 @@ async fn handle_socket(client_socket: WebSocket) {
                     .await
                     .unwrap();
 
-                //client_sender.send(AMessage::Binary(vec![0, 0, 0, 0])).await.unwrap();
                 println!("Sent ticket");
                 continue;
             }
+
+
 
             client_sender
                 .send(convert_tungstenite_to_axum(msg))
@@ -292,7 +300,7 @@ async fn create_no_vnc_credentials() -> Result<NoVncCredentials, reqwest::Error>
             .unwrap(),
     );
     let client = Client::new();
-    let response = client.post("https://redacted.com/api/coterm/servers/c6c4bc0d-e7d4-467c-ad96-74d8f8c0f2df/create-console-session")
+    let response = client.post("https://redacted/api/coterm/servers/c6c4bc0d-e7d4-467c-ad96-74d8f8c0f2df/create-console-session")
         .headers(headers)
         .send()
         .await.unwrap();
