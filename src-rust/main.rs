@@ -17,9 +17,11 @@ use rand::Rng;
 use reqwest::Client;
 use serde::Deserialize;
 use serde_json::{json, Value};
-use url::form_urlencoded::byte_serialize;
+use std::sync::Arc;
 use std::{net::SocketAddr, path::PathBuf};
 use tokio::join;
+use tokio::sync::Mutex;
+use tokio_tungstenite::tungstenite::Error as TWebSocketError;
 use tokio_tungstenite::{
     connect_async,
     tungstenite::{
@@ -29,9 +31,8 @@ use tokio_tungstenite::{
 };
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::ServeDir;
-use tokio_tungstenite::tungstenite::Error as TWebSocketError;
-
-
+use urlencoding::encode;
+mod des;
 
 #[tokio::main]
 async fn main() {
@@ -62,18 +63,24 @@ async fn handle_socket(client_socket: WebSocket) {
     let credentials = create_no_vnc_credentials().await.unwrap();
     let (mut client_sender, mut client_receiver) = client_socket.split();
 
-    let path = format!("wss://{}:{}/api2/json/nodes/{}/qemu/{}/vncwebsocket?port={}&vncticket={}", credentials.node_fqdn, credentials.node_port, credentials.node_pve_name, credentials.vmid, credentials.port, credentials.ticket);
+    let path = format!(
+        "wss://{}:{}/api2/json/nodes/{}/qemu/{}/vncwebsocket?port={}&vncticket={}",
+        credentials.node_fqdn,
+        credentials.node_port,
+        credentials.node_pve_name,
+        credentials.vmid,
+        credentials.port,
+        encode(&credentials.ticket)
+    );
     let mut headers = [EMPTY_HEADER; 16];
     let mut remote_request = Request::new(&mut headers);
     remote_request.method = Some("GET");
     remote_request.version = Some(1);
     remote_request.path = Some(&path);
     let websocket_key = generate_websocket_key();
-    // encode the pve_auth_cookie in the cookie encodeURIComponent equivalent
     let cookie = format!("PVEAuthCookie={}", credentials.pve_auth_cookie);
     println!("cookie: {}", cookie);
     let host = format!("{}:{}", credentials.node_fqdn, credentials.node_port);
-    let origin = format!("https://{}:{}", credentials.node_fqdn, credentials.node_port);
     let mut actual_headers = [
         Header {
             name: "sec-websocket-key",
@@ -100,25 +107,13 @@ async fn handle_socket(client_socket: WebSocket) {
             value: cookie.as_bytes(),
         },
         Header {
-            name: "origin",
-            value: origin.as_bytes(),
-        },
-        Header {
-            name: "user-agent",
-            value: b"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36",
-        },
-        Header {
             name: "sec-websocket-protocol",
             value: b"binary",
         },
-        Header {
-            name: "pragma",
-            value: b"no-cache",
-        }
     ];
     remote_request.headers = &mut actual_headers;
 
-// if it errors, get the body of the error (Http with body p) as text and print it
+    // if it errors, get the body of the error (Http with body p) as text and print it
     let (remote_socket, _) = connect_async(remote_request)
         .await
         // .unwrap();
@@ -133,8 +128,12 @@ async fn handle_socket(client_socket: WebSocket) {
                         panic!("Failed to connect to WebSocket fuck: {}", status_code);
                     };
 
-                    panic!("Failed to connect to WebSocket: {} - {}", status_code, String::from_utf8_lossy(&error_message).to_string());
-                },
+                    panic!(
+                        "Failed to connect to WebSocket: {} - {}",
+                        status_code,
+                        String::from_utf8_lossy(&error_message).to_string()
+                    );
+                }
                 _ => {
                     // Use default panic for all other error cases
                     panic!("Failed to connect to WebSocket: {}", e);
@@ -142,14 +141,18 @@ async fn handle_socket(client_socket: WebSocket) {
             }
         });
 
-    let (mut remote_sender, mut remote_receiver) = remote_socket.split();
+    let (remote_sender, mut remote_receiver) = remote_socket.split();
+    let remote_sender = Arc::new(Mutex::new(remote_sender));
 
     // send from client to remote and back
     let client_to_remote = async {
         while let Some(Ok(msg)) = client_receiver.next().await {
             println!("client_to_remote: {:?}", msg);
+            let remote_sender = remote_sender.clone();
 
             remote_sender
+                .lock()
+                .await
                 .send(convert_axum_to_tungstenite(msg))
                 .await
                 .unwrap();
@@ -158,13 +161,64 @@ async fn handle_socket(client_socket: WebSocket) {
 
     // send from remote to client and back
     let remote_to_client = async {
+        let mut messages_received = 0;
         while let Some(Ok(msg)) = remote_receiver.next().await {
-            println!("remote_to_client: {:?}", msg);
+            messages_received += 1;
+            println!("remote_to_client: {:?} | {:?}", msg.to_text(), msg);
+
+            println!("messages_received: {}", messages_received);
+
+            if msg == TMessage::Binary(vec![1,2]) {
+                let remote_sender = remote_sender.clone();
+                remote_sender
+                    .lock()
+                    .await
+                    .send(TMessage::Binary(vec![2]))
+                    .await
+                    .unwrap();
+                client_sender.send(AMessage::Binary(vec![1, 1])).await.unwrap();
+                println!("Intercepted authentication method message");
+                continue;
+            }
+
+            if messages_received == 3 {
+                let remote_sender = remote_sender.clone();
+                let ticket = credentials.ticket.clone();
+
+                let mut ticket = ticket.as_bytes().to_owned();
+                for i in 0..8 {
+                    let c = ticket[i];
+                    let mut cs = 0u8;
+                    for j in 0..8 {
+                        cs |= ((c >> j) & 1) << (7 - j)
+                    }
+                    ticket[i] = cs;
+                }
+
+                let challenge = msg.into_data();
+
+                let trimmed_ticket: &[u8; 8] = &ticket[0..8].try_into().unwrap();
+
+                let response = des::encrypt(&challenge, &trimmed_ticket);
+
+                remote_sender
+                    .lock()
+                    .await
+                    .send(TMessage::Binary(response))
+                    .await
+                    .unwrap();
+
+                //client_sender.send(AMessage::Binary(vec![0, 0, 0, 0])).await.unwrap();
+                println!("Sent ticket");
+                continue;
+            }
 
             client_sender
                 .send(convert_tungstenite_to_axum(msg))
                 .await
                 .unwrap();
+
+            println!("message forwarded remote_to_client");
         }
     };
 
@@ -216,8 +270,7 @@ fn generate_websocket_key() -> String {
     general_purpose::STANDARD_NO_PAD.encode(&key_bytes)
 }
 
-#[derive(Deserialize)]
-#[derive(Debug)]
+#[derive(Deserialize, Debug)]
 struct NoVncCredentials {
     node_fqdn: String,
     node_port: u32,
@@ -232,9 +285,14 @@ async fn create_no_vnc_credentials() -> Result<NoVncCredentials, reqwest::Error>
     let mut headers = HeaderMap::new();
     headers.insert("Content-Type", "application/json".parse().unwrap());
     headers.insert("Accept", "application/json".parse().unwrap());
-    headers.insert("Authorization", "Bearer redacted".parse().unwrap());
+    headers.insert(
+        "Authorization",
+        "Bearer redacted"
+            .parse()
+            .unwrap(),
+    );
     let client = Client::new();
-    let response = client.post("https://redacted/api/coterm/servers/c6c4bc0d-e7d4-467c-ad96-74d8f8c0f2df/create-console-session")
+    let response = client.post("https://redacted.com/api/coterm/servers/c6c4bc0d-e7d4-467c-ad96-74d8f8c0f2df/create-console-session")
         .headers(headers)
         .send()
         .await.unwrap();
@@ -250,29 +308,3 @@ async fn create_no_vnc_credentials() -> Result<NoVncCredentials, reqwest::Error>
         Err(response.error_for_status().unwrap_err())
     }
 }
-
-// async fn login(username: String, password: String) {
-//     let client = Client::new();
-//     let body = json!({
-//         "username": username,
-//         "password": password
-//     });
-//     let mut headers = HeaderMap::new();
-//     headers.insert("Content-Type", "application/json".parse().unwrap());
-//     headers.insert("Accept", "application/json".parse().unwrap());
-
-
-//     let response = client
-//         .post("https://pve-node.com:8006/api2/json/access/ticket")
-//         .headers(headers)
-//         .body(body.to_string())
-//         .send()
-//         .await.unwrap();
-
-//         if response.status().is_success() {
-//             let data: Value = serde_json::from_str(&response.text().await.unwrap()).unwrap();
-//             println!("Data: {:?}", data["data"]["username"]);
-//         } else {
-//             println!("Error: {:?}", response);
-//         }
-// }
