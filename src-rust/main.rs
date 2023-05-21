@@ -13,9 +13,10 @@ use base64::{engine::general_purpose, Engine as _};
 use dotenv::dotenv;
 use futures_util::{sink::SinkExt, stream::StreamExt};
 use httparse::{Header, Request, EMPTY_HEADER};
+use jsonwebtoken::{decode, Validation, DecodingKey};
 use rand::Rng;
 use reqwest::Client;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::sync::Arc;
 use std::{net::SocketAddr, path::PathBuf};
@@ -33,9 +34,24 @@ use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::ServeDir;
 use urlencoding::encode;
 mod des;
+mod helpers;
+mod no_vnc;
+mod xterm;
+
+#[macro_use]
+extern crate dotenv_codegen;
+
+#[derive(Debug, Serialize, Deserialize)]
+struct Claims {
+    server_uuid: String,
+}
 
 #[tokio::main]
 async fn main() {
+    //let decoding_key = DecodingKey::from_secret("eyJpdiI6Ikd2VUp4TEU1am9NbTFZWkpHeUVrS3c9PSIsInZhbHVlIjoic2g5dVFpekJsNmxNQWhNc0dQTEI0TERJMlNNVGdGRHFjUUxNRFlXbzd0VzI0M1dHZzRQYWhrT0pHUTBHSUpDekU2bUgyekZoSzFiZEpWakhhc1dOSjc0TTE3eGFQeHA0S0xjYmdmZVVIblU9IiwibWFjIjoiZGM1MWViYWZkMWE0N2ViNWJhMDE5ZWMzZDYzN2VhMzc0ZGYwNzZjODBmYWRkYTIxNTA5YzM1NjczZDgwZWZiMSIsInRhZyI6IiJ9".as_ref());
+    //let token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiIsImp0aSI6ImIxM2ZhYzY0YWIxZDBiMjU4MjRlYWU0YjYyNzA1NjYwNThjM2FhOWRjNThlNmMzZjcyYTdmYjRkZTdlYzdhNDcifQ.eyJpc3MiOiJodHRwczovL3VzLWVhc3QucGVyZm9ybWF2ZS5jb20iLCJhdWQiOiJodHRwczovL3VzLWVhc3QucGVyZm9ybWF2ZS5jb206NDQzIiwianRpIjoiYjEzZmFjNjRhYjFkMGIyNTgyNGVhZTRiNjI3MDU2NjA1OGMzYWE5ZGM1OGU2YzNmNzJhN2ZiNGRlN2VjN2E0NyIsImlhdCI6MTY4Mzc2OTUxNS42NDAwNjUsIm5iZiI6MTY4Mzc2OTIxNS42NDAwODMsImV4cCI6MTY4Mzc2OTU0NS42Mzc0MDgsInNlcnZlcl91dWlkIjoiYzZjNGJjMGQtZTdkNC00NjdjLWFkOTYtNzRkOGY4YzBmMmRmIiwidXNlcl91dWlkIjpudWxsLCJ1bmlxdWVfaWQiOiJmM1dsMjFQRlNjeWw4VkQ4In0.LeNXZ8-ROAYxNDPybGjfhnbJ6GgcSDs5Q9jdpvM9Q9Y";
+    //println!("{:?}", decode::<Claims>(&token, &decoding_key, &Validation::default()));
+    dotenv();
     let cors = CorsLayer::new().allow_origin(Any);
 
     let assets_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("dist");
@@ -116,30 +132,7 @@ async fn handle_socket(client_socket: WebSocket) {
     // if it errors, get the body of the error (Http with body p) as text and print it
     let (remote_socket, _) = connect_async(remote_request)
         .await
-        // .unwrap();
-        .unwrap_or_else(|e| {
-            match e {
-                TWebSocketError::Http(http_response) => {
-                    // Get the HTTP response code and error message
-                    let status_code = http_response.status();
-                    let error_message = if let Some(error_message) = http_response.into_body() {
-                        error_message
-                    } else {
-                        panic!("Failed to connect to WebSocket fuck: {}", status_code);
-                    };
-
-                    panic!(
-                        "Failed to connect to WebSocket: {} - {}",
-                        status_code,
-                        String::from_utf8_lossy(&error_message).to_string()
-                    );
-                }
-                _ => {
-                    // Use default panic for all other error cases
-                    panic!("Failed to connect to WebSocket: {}", e);
-                }
-            }
-        });
+        .unwrap();
 
     let (remote_sender, mut remote_receiver) = remote_socket.split();
     let remote_sender = Arc::new(Mutex::new(remote_sender));
