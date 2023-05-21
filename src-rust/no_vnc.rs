@@ -18,6 +18,7 @@ use rand::Rng;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::{net::SocketAddr, path::PathBuf};
 use tokio::join;
@@ -34,7 +35,7 @@ use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::ServeDir;
 use urlencoding::encode;
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct NoVncCredentials {
     pub node_fqdn: String,
     pub node_port: u32,
@@ -45,21 +46,30 @@ pub struct NoVncCredentials {
     pub pve_auth_cookie: String,
 }
 
-async fn create_no_vnc_credentials(server_uuid: String) -> Result<NoVncCredentials, reqwest::Error> {
+pub async fn create_no_vnc_credentials(
+    server_uuid: String,
+) -> Result<NoVncCredentials, reqwest::Error> {
     let mut headers = HeaderMap::new();
     headers.insert("Content-Type", "application/json".parse().unwrap());
     headers.insert("Accept", "application/json".parse().unwrap());
     headers.insert(
         "Authorization",
-        format!("Bearer {}", dotenv!("TOKEN"))
-            .parse()
-            .unwrap(),
+        format!("Bearer {}", dotenv!("TOKEN")).parse().unwrap(),
     );
-    let client = Client::new();
-    let response = client.post(format!("{}/api/coterm/servers/{}/create-console-session", dotenv!("CONVOY_URL"), server_uuid))
+    let mut payload = HashMap::new();
+    payload.insert("type".to_owned(), "no_vnc".to_owned());
+
+    let response = Client::new()
+        .post(format!(
+            "{}/api/coterm/servers/{}/create-console-session",
+            dotenv!("CONVOY_URL"),
+            server_uuid
+        ))
+        .json(&payload)
         .headers(headers)
         .send()
-        .await.unwrap();
+        .await
+        .unwrap();
 
     if response.status().is_success() {
         let data: Value = serde_json::from_str(&response.text().await.unwrap()).unwrap();

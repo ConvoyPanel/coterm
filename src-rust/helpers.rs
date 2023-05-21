@@ -1,8 +1,22 @@
+use axum::http::request::Builder;
+use axum::http::Request;
 use base64;
 use base64::{engine::general_purpose, Engine as _};
-use httparse::{Header, Request, EMPTY_HEADER};
 use rand::Rng;
+use reqwest::header::{
+    CONNECTION, COOKIE, HOST, SEC_WEBSOCKET_KEY, SEC_WEBSOCKET_PROTOCOL, SEC_WEBSOCKET_VERSION,
+    UPGRADE,
+};
 use urlencoding::encode;
+use axum::extract::ws::{CloseFrame as ACloseFrame, Message as AMessage};
+use tokio_tungstenite::tungstenite::Error as TWebSocketError;
+use tokio_tungstenite::{
+    connect_async,
+    tungstenite::{
+        protocol::frame::coding::CloseCode as TCloseCode, protocol::CloseFrame as TCloseFrame,
+        Message as TMessage,
+    },
+};
 
 use crate::no_vnc::NoVncCredentials;
 use crate::xterm::XTermCredentials;
@@ -12,70 +26,17 @@ pub enum Credentials {
     NoVnc(NoVncCredentials),
 }
 
-
-pub fn create_request(creds: Credentials) -> Request<'static, 'static> {
-    let mut placeholder_headers = [EMPTY_HEADER; 16];
-    let mut request = Request::new(&mut placeholder_headers);
-
-    request.method = Some("GET");
-    request.version = Some(1);
-    let websocket_key = generate_websocket_key();
-
-    let mut headers = vec![
-        Header {
-            name: "sec-websocket-key",
-            value: &websocket_key.as_bytes(),
-        },
-        Header {
-            name: "sec-websocket-version",
-            value: b"13",
-        },
-        Header {
-            name: "connection",
-            value: b"Upgrade",
-        },
-        Header {
-            name: "upgrade",
-            value: b"websocket",
-        },
-        Header {
-            name: "sec-websocket-protocol",
-            value: b"binary",
-        },
-    ];
-    let mut path = String::new();
-    let mut cookie = String::new();
-    let mut host = String::new();
+pub fn create_request(creds: Credentials) -> Builder {
+    let mut request = Request::builder()
+        .header(SEC_WEBSOCKET_KEY, generate_websocket_key())
+        .header(SEC_WEBSOCKET_VERSION, "13")
+        .header(SEC_WEBSOCKET_PROTOCOL, "binary")
+        .header(CONNECTION, "Upgrade")
+        .header(UPGRADE, "websocket");
 
     match creds {
         Credentials::XTerm(creds) => {
-            path = format!(
-                "wss://{}:{}/api2/json/nodes/{}/qemu/{}/termproxy?port={}&vncticket={}",
-                creds.node_fqdn,
-                creds.node_port,
-                creds.node_pve_name,
-                creds.vmid,
-                creds.port,
-                encode(&creds.ticket)
-            );
-            cookie = format!("PVEAuthCookie={}", creds.pve_auth_cookie);
-            host = format!("{}:{}", creds.node_fqdn, creds.node_port);
-
-            headers.append(&mut vec![
-                Header {
-                    name: "host",
-                    value: host.as_bytes(),
-                },
-                Header {
-                    name: "cookie",
-                    value: cookie.as_bytes(),
-                },
-            ]);
-
-            request.path = Some(&path);
-        }
-        Credentials::NoVnc(creds) => {
-            path = format!(
+            let path = format!(
                 "wss://{}:{}/api2/json/nodes/{}/qemu/{}/vncwebsocket?port={}&vncticket={}",
                 creds.node_fqdn,
                 creds.node_port,
@@ -84,25 +45,27 @@ pub fn create_request(creds: Credentials) -> Request<'static, 'static> {
                 creds.port,
                 encode(&creds.ticket)
             );
-            cookie = format!("PVEAuthCookie={}", creds.pve_auth_cookie);
-            host = format!("{}:{}", creds.node_fqdn, creds.node_port);
-
-            headers.append(&mut vec![
-                Header {
-                    name: "host",
-                    value: host.as_bytes(),
-                },
-                Header {
-                    name: "cookie",
-                    value: cookie.as_bytes(),
-                },
-            ]);
-
-            request.path = Some(&path);
+            request = request
+                .header(COOKIE, format!("PVEAuthCookie={}", creds.pve_auth_cookie))
+                .header(HOST, format!("{}:{}", creds.node_fqdn, creds.node_port))
+                .uri(path);
+        }
+        Credentials::NoVnc(creds) => {
+            let path = format!(
+                "wss://{}:{}/api2/json/nodes/{}/qemu/{}/vncwebsocket?port={}&vncticket={}",
+                creds.node_fqdn,
+                creds.node_port,
+                creds.node_pve_name,
+                creds.vmid,
+                creds.port,
+                encode(&creds.ticket)
+            );
+            request = request
+                .header(COOKIE, format!("PVEAuthCookie={}", creds.pve_auth_cookie))
+                .header(HOST, format!("{}:{}", creds.node_fqdn, creds.node_port))
+                .uri(path);
         }
     }
-
-    request.headers = &mut headers;
 
     request
 }
@@ -113,4 +76,42 @@ fn generate_websocket_key() -> String {
     rng.fill(&mut key_bytes);
 
     general_purpose::STANDARD_NO_PAD.encode(&key_bytes)
+}
+
+
+pub fn convert_axum_to_tungstenite(axum_msg: AMessage) -> TMessage {
+    match axum_msg {
+        AMessage::Binary(payload) => TMessage::Binary(payload.to_vec()),
+        AMessage::Text(payload) => TMessage::Text(payload),
+        AMessage::Ping(payload) => TMessage::Ping(payload),
+        AMessage::Pong(payload) => TMessage::Pong(payload),
+        AMessage::Close(Some(ACloseFrame { code, reason })) => {
+            let close_frame = TCloseFrame {
+                code: TCloseCode::from(code),
+                reason: reason.into(),
+            };
+            TMessage::Close(Some(TCloseFrame::from(close_frame)))
+        }
+        AMessage::Close(None) => TMessage::Close(None),
+    }
+}
+
+pub fn convert_tungstenite_to_axum(tungstenite_msg: TMessage) -> AMessage {
+    match tungstenite_msg {
+        TMessage::Binary(payload) => AMessage::Binary(payload.into()),
+        TMessage::Text(payload) => AMessage::Text(payload),
+        TMessage::Ping(payload) => AMessage::Ping(payload.into()),
+        TMessage::Pong(payload) => AMessage::Pong(payload.into()),
+        TMessage::Close(payload) => {
+            let (code, reason) = payload
+                .map(|c| (c.code, c.reason))
+                .unwrap_or((TCloseCode::from(1000), String::new().into()));
+            let close_frame = ACloseFrame {
+                code: code.into(),
+                reason,
+            };
+            AMessage::Close(Some(close_frame))
+        }
+        TMessage::Frame(_) => panic!("Frame messages are not supported"),
+    }
 }
