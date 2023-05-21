@@ -7,17 +7,18 @@ use urlencoding::encode;
 use crate::no_vnc::NoVncCredentials;
 use crate::xterm::XTermCredentials;
 
-enum Credentials {
+pub enum Credentials {
     XTerm(XTermCredentials),
     NoVnc(NoVncCredentials),
 }
 
-pub fn create_request(creds: Credentials) {
-    let mut placeholder_headers = [EMPTY_HEADER; 16];
-    let mut remote_request = Request::new(&mut placeholder_headers);
 
-    remote_request.method = Some("GET");
-    remote_request.version = Some(1);
+pub fn create_request(creds: Credentials) -> Request<'static, 'static> {
+    let mut placeholder_headers = [EMPTY_HEADER; 16];
+    let mut request = Request::new(&mut placeholder_headers);
+
+    request.method = Some("GET");
+    request.version = Some(1);
     let websocket_key = generate_websocket_key();
 
     let mut headers = vec![
@@ -42,10 +43,13 @@ pub fn create_request(creds: Credentials) {
             value: b"binary",
         },
     ];
+    let mut path = String::new();
+    let mut cookie = String::new();
+    let mut host = String::new();
 
     match creds {
         Credentials::XTerm(creds) => {
-            let path = format!(
+            path = format!(
                 "wss://{}:{}/api2/json/nodes/{}/qemu/{}/termproxy?port={}&vncticket={}",
                 creds.node_fqdn,
                 creds.node_port,
@@ -54,13 +58,13 @@ pub fn create_request(creds: Credentials) {
                 creds.port,
                 encode(&creds.ticket)
             );
-            let cookie = format!("PVEAuthCookie={}", creds.pve_auth_cookie);
-            let host = format!("{}:{}", creds.node_fqdn, creds.node_port);
+            cookie = format!("PVEAuthCookie={}", creds.pve_auth_cookie);
+            host = format!("{}:{}", creds.node_fqdn, creds.node_port);
 
             headers.append(&mut vec![
                 Header {
                     name: "host",
-                    value: &host.to_owned().as_bytes().to_owned(),
+                    value: host.as_bytes(),
                 },
                 Header {
                     name: "cookie",
@@ -68,10 +72,10 @@ pub fn create_request(creds: Credentials) {
                 },
             ]);
 
-            remote_request.path = Some(&path);
+            request.path = Some(&path);
         }
         Credentials::NoVnc(creds) => {
-            let path = format!(
+            path = format!(
                 "wss://{}:{}/api2/json/nodes/{}/qemu/{}/vncwebsocket?port={}&vncticket={}",
                 creds.node_fqdn,
                 creds.node_port,
@@ -80,13 +84,13 @@ pub fn create_request(creds: Credentials) {
                 creds.port,
                 encode(&creds.ticket)
             );
-            let cookie = format!("PVEAuthCookie={}", creds.pve_auth_cookie);
-            let host = format!("{}:{}", creds.node_fqdn, creds.node_port);
+            cookie = format!("PVEAuthCookie={}", creds.pve_auth_cookie);
+            host = format!("{}:{}", creds.node_fqdn, creds.node_port);
 
             headers.append(&mut vec![
                 Header {
                     name: "host",
-                    value: &host.as_bytes().to_owned(),
+                    value: host.as_bytes(),
                 },
                 Header {
                     name: "cookie",
@@ -94,11 +98,13 @@ pub fn create_request(creds: Credentials) {
                 },
             ]);
 
-            remote_request.path = Some(&path);
+            request.path = Some(&path);
         }
     }
 
-    remote_request.headers = &mut headers;
+    request.headers = &mut headers;
+
+    request
 }
 
 fn generate_websocket_key() -> String {
