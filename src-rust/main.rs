@@ -1,20 +1,25 @@
+use axum::Json;
 use axum::extract::ws::{CloseFrame as ACloseFrame, Message as AMessage};
+use axum::extract::Query;
 use axum::http::HeaderMap;
+use axum::response::Response;
 use axum::{
     body::{boxed, Body, BoxBody},
     extract::ws::{WebSocket, WebSocketUpgrade},
-    http::{Response, StatusCode, Uri},
+    http::{Response as HttpResponse, StatusCode, Uri},
     response::IntoResponse,
     routing::get,
     Router,
 };
+use axum_auth::AuthBearer;
+use axum_extra::extract::CookieJar;
 use base64;
 use base64::{engine::general_purpose, Engine as _};
 use dotenv::dotenv;
 use futures_util::{sink::SinkExt, stream::StreamExt};
 use helpers::create_request;
 use httparse::{Header, Request, EMPTY_HEADER};
-use jsonwebtoken::{decode, Validation, DecodingKey};
+use jsonwebtoken::{decode, DecodingKey, Validation};
 use rand::Rng;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
@@ -46,13 +51,11 @@ mod xterm;
 #[derive(Debug, Serialize, Deserialize)]
 struct Claims {
     server_uuid: String,
+    console_type: String,
 }
 
 #[tokio::main]
 async fn main() {
-    //let decoding_key = DecodingKey::from_secret("eyJpdiI6Ikd2VUp4TEU1am9NbTFZWkpHeUVrS3c9PSIsInZhbHVlIjoic2g5dVFpekJsNmxNQWhNc0dQTEI0TERJMlNNVGdGRHFjUUxNRFlXbzd0VzI0M1dHZzRQYWhrT0pHUTBHSUpDekU2bUgyekZoSzFiZEpWakhhc1dOSjc0TTE3eGFQeHA0S0xjYmdmZVVIblU9IiwibWFjIjoiZGM1MWViYWZkMWE0N2ViNWJhMDE5ZWMzZDYzN2VhMzc0ZGYwNzZjODBmYWRkYTIxNTA5YzM1NjczZDgwZWZiMSIsInRhZyI6IiJ9".as_ref());
-    //let token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiIsImp0aSI6ImIxM2ZhYzY0YWIxZDBiMjU4MjRlYWU0YjYyNzA1NjYwNThjM2FhOWRjNThlNmMzZjcyYTdmYjRkZTdlYzdhNDcifQ.eyJpc3MiOiJodHRwczovL3VzLWVhc3QucGVyZm9ybWF2ZS5jb20iLCJhdWQiOiJodHRwczovL3VzLWVhc3QucGVyZm9ybWF2ZS5jb206NDQzIiwianRpIjoiYjEzZmFjNjRhYjFkMGIyNTgyNGVhZTRiNjI3MDU2NjA1OGMzYWE5ZGM1OGU2YzNmNzJhN2ZiNGRlN2VjN2E0NyIsImlhdCI6MTY4Mzc2OTUxNS42NDAwNjUsIm5iZiI6MTY4Mzc2OTIxNS42NDAwODMsImV4cCI6MTY4Mzc2OTU0NS42Mzc0MDgsInNlcnZlcl91dWlkIjoiYzZjNGJjMGQtZTdkNC00NjdjLWFkOTYtNzRkOGY4YzBmMmRmIiwidXNlcl91dWlkIjpudWxsLCJ1bmlxdWVfaWQiOiJmM1dsMjFQRlNjeWw4VkQ4In0.LeNXZ8-ROAYxNDPybGjfhnbJ6GgcSDs5Q9jdpvM9Q9Y";
-    //println!("{:?}", decode::<Claims>(&token, &decoding_key, &Validation::default()));
     dotenv().ok();
 
     let cors = CorsLayer::new().allow_origin(Any);
@@ -60,10 +63,8 @@ async fn main() {
     let assets_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("dist");
 
     let app = Router::new()
-        .route("/ws", get(|ws: WebSocketUpgrade| async {
-            ws.on_upgrade(proxy_xterm_traffic)
-        }))
-        .route("/test", get(|| async { "Hi from /foo" }))
+        .route("/ws", get(authenticate_and_upgrade))
+        .route("/test", get(test))
         .nest_service("/", ServeDir::new(assets_dir))
         .layer(cors);
 
@@ -74,4 +75,40 @@ async fn main() {
         .serve(app.into_make_service())
         .await
         .unwrap();
+}
+
+async fn test() -> Result<(), impl IntoResponse> {
+    Err((StatusCode::BAD_REQUEST, "joe"))
+}
+
+async fn authenticate_and_upgrade(
+    jar: CookieJar,
+    ws: WebSocketUpgrade,
+) -> Result<impl IntoResponse, StatusCode> {
+    let jwt_in_a_cookie: Option<String> = jar.get("token").map(|cookie| cookie.value().to_owned());
+
+
+
+    if let Some(jwt) = jwt_in_a_cookie {
+        println!("Cookie: {:?}", jwt);
+
+        let token = dotenv::var("TOKEN").unwrap();
+        let secret = token.split("|").nth(1).expect("Token is formatted incorrectly. Please check your .env file. The token should be in the format TOKEN_ID|TOKEN_SECRET");
+        let decoding_key = DecodingKey::from_secret(secret.as_ref());
+
+        if let Ok(mama) = decode::<Claims>(&jwt, &decoding_key, &Validation::default()) {
+            match mama.claims.console_type.as_str() {
+                "novnc" => {
+                    return Ok(ws.on_upgrade(proxy_novnc_traffic));
+                }
+                _ => {
+                    return Err(StatusCode::BAD_REQUEST);
+                }
+            }
+        } else {
+            return Err(StatusCode::BAD_REQUEST);
+        }
+    } else {
+        return Err(StatusCode::BAD_REQUEST);
+    }
 }
