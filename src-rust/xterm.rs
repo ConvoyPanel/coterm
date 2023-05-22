@@ -35,6 +35,11 @@ use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::ServeDir;
 use urlencoding::encode;
 
+use crate::des;
+use crate::helpers::{
+    self, convert_axum_to_tungstenite, convert_tungstenite_to_axum, create_request,
+};
+
 #[derive(Deserialize, Debug, Clone)]
 pub struct XTermCredentials {
     pub node_fqdn: String,
@@ -56,7 +61,9 @@ pub async fn create_xterm_credentials(
     headers.insert("Accept", "application/json".parse().unwrap());
     headers.insert(
         "Authorization",
-        format!("Bearer {}", dotenv::var("TOKEN").unwrap()).parse().unwrap(),
+        format!("Bearer {}", dotenv::var("TOKEN").unwrap())
+            .parse()
+            .unwrap(),
     );
     let mut payload = HashMap::new();
     payload.insert("type".to_owned(), "xtermjs".to_owned());
@@ -83,4 +90,51 @@ pub async fn create_xterm_credentials(
         println!("Error: {:?}", response);
         Err(response.error_for_status().unwrap_err())
     }
+}
+
+pub async fn proxy_xterm_traffic(client_socket: WebSocket) {
+    let (mut client_sender, mut client_receiver) = client_socket.split();
+
+    let creds = create_xterm_credentials("c6c4bc0d".to_owned())
+        .await
+        .unwrap();
+
+    let (remote_socket, _) = connect_async(
+        create_request(helpers::Credentials::XTerm(creds.clone()))
+            .body(())
+            .unwrap(),
+    )
+    .await
+    .unwrap();
+
+    let (mut remote_sender, mut remote_receiver) = remote_socket.split();
+
+    let remote_creds = format!("{}@{}:{}", creds.username, creds.realm_type, creds.ticket);
+    remote_sender.send(TMessage::Text(remote_creds.clone())).await.unwrap();
+    println!("Sent credentials to remote: {}", remote_creds);
+
+    let client_to_remote = async {
+        while let Some(Ok(msg)) = client_receiver.next().await {
+            println!("client_to_remote: {:?}", msg);
+
+            remote_sender
+                .send(convert_axum_to_tungstenite(msg))
+                .await
+                .unwrap();
+        }
+    };
+
+    // send from remote to client and back
+    let remote_to_client = async {
+        while let Some(Ok(msg)) = remote_receiver.next().await {
+            println!("remote_to_client: {:?}", msg);
+
+            client_sender
+                .send(convert_tungstenite_to_axum(msg))
+                .await
+                .unwrap();
+        }
+    };
+
+    join!(client_to_remote, remote_to_client);
 }

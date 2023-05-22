@@ -13,7 +13,9 @@
   "dependencies": {
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-vnc": "^0.5.8"
+    "xterm": "^5.1.0",
+    "xterm-addon-attach": "^0.8.0",
+    "xterm-addon-fit": "^0.7.0"
   },
   "devDependencies": {
     "@types/react": "^18.0.28",
