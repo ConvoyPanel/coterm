@@ -43,9 +43,6 @@ mod helpers;
 mod no_vnc;
 mod xterm;
 
-#[macro_use]
-extern crate dotenv_codegen;
-
 #[derive(Debug, Serialize, Deserialize)]
 struct Claims {
     server_uuid: String,

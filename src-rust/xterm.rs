@@ -56,15 +56,15 @@ pub async fn create_xterm_credentials(
     headers.insert("Accept", "application/json".parse().unwrap());
     headers.insert(
         "Authorization",
-        format!("Bearer {}", dotenv!("TOKEN")).parse().unwrap(),
+        format!("Bearer {}", dotenv::var("TOKEN").unwrap()).parse().unwrap(),
     );
     let mut payload = HashMap::new();
-    payload.insert("type".to_owned(), "xterm_js".to_owned());
+    payload.insert("type".to_owned(), "xtermjs".to_owned());
 
     let response = Client::new()
         .post(format!(
             "{}/api/coterm/servers/{}/create-console-session",
-            dotenv!("CONVOY_URL"),
+            dotenv::var("CONVOY_URL").unwrap(),
             server_uuid
         ))
         .json(&payload)
