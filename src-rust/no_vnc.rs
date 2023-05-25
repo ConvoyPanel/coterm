@@ -78,18 +78,16 @@ pub async fn create_no_vnc_credentials(
         let data: Value = serde_json::from_str(&response.text().await.unwrap()).unwrap();
         // deserialize the response which is nested in "data"
         let credentials: NoVncCredentials = serde_json::from_value(data["data"].clone()).unwrap();
-        println!("Data: {:?}", credentials);
         Ok(credentials)
     } else {
-        println!("Error: {:?}", response);
         Err(response.error_for_status().unwrap_err())
     }
 }
 
-pub async fn proxy_novnc_traffic(client_socket: WebSocket) {
+pub async fn proxy_novnc_traffic(server_uuid: String, client_socket: WebSocket) {
     let (mut client_sender, mut client_receiver) = client_socket.split();
 
-    let creds = create_no_vnc_credentials("c6c4bc0d".to_owned()).await.unwrap();
+    let creds = create_no_vnc_credentials(server_uuid).await.unwrap();
 
     let (remote_socket, _) = connect_async(create_request(helpers::Credentials::NoVnc(creds.clone())).body(()).unwrap())
         .await
@@ -102,11 +100,9 @@ pub async fn proxy_novnc_traffic(client_socket: WebSocket) {
     let client_to_remote = async {
         let mut already_intercepted_auth_method = false;
         while let Some(Ok(msg)) = client_receiver.next().await {
-            println!("client_to_remote: {:?}", msg);
             let remote_sender = remote_sender.clone();
 
             if msg == AMessage::Binary(vec![1]) && !already_intercepted_auth_method {
-                println!("Intercepted auth method selection");
                 already_intercepted_auth_method = true;
                 continue;
             }
@@ -127,9 +123,6 @@ pub async fn proxy_novnc_traffic(client_socket: WebSocket) {
             if (messages_received < 5) {
                 messages_received += 1;
             }
-            println!("remote_to_client: {:?} | {:?}", msg.to_text(), msg);
-
-            println!("messages_received: {}", messages_received);
 
             if msg == TMessage::Binary(vec![1,2]) {
                 let remote_sender = remote_sender.clone();
@@ -140,7 +133,6 @@ pub async fn proxy_novnc_traffic(client_socket: WebSocket) {
                     .await
                     .unwrap();
                 client_sender.send(AMessage::Binary(vec![1, 1])).await.unwrap();
-                println!("Intercepted authentication method message");
                 continue;
             }
 
@@ -171,7 +163,6 @@ pub async fn proxy_novnc_traffic(client_socket: WebSocket) {
                     .await
                     .unwrap();
 
-                println!("Sent ticket");
                 continue;
             }
 
@@ -182,7 +173,6 @@ pub async fn proxy_novnc_traffic(client_socket: WebSocket) {
                 .await
                 .unwrap();
 
-            println!("message forwarded remote_to_client");
         }
     };
 

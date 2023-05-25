@@ -95,6 +95,7 @@ pub async fn create_xterm_credentials(
 pub async fn proxy_xterm_traffic(client_socket: WebSocket) {
     let (mut client_sender, mut client_receiver) = client_socket.split();
 
+    // TODO: make server_uuid dynamic
     let creds = create_xterm_credentials("c6c4bc0d".to_owned())
         .await
         .unwrap();

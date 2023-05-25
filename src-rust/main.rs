@@ -1,8 +1,8 @@
-use axum::Json;
 use axum::extract::ws::{CloseFrame as ACloseFrame, Message as AMessage};
 use axum::extract::Query;
 use axum::http::HeaderMap;
 use axum::response::Response;
+use axum::Json;
 use axum::{
     body::{boxed, Body, BoxBody},
     extract::ws::{WebSocket, WebSocketUpgrade},
@@ -56,6 +56,7 @@ struct Claims {
 
 #[tokio::main]
 async fn main() {
+    println!("{}", env!("CARGO_MANIFEST_DIR"));
     dotenv().ok();
 
     let cors = CorsLayer::new().allow_origin(Any);
@@ -87,28 +88,27 @@ async fn authenticate_and_upgrade(
 ) -> Result<impl IntoResponse, StatusCode> {
     let jwt_in_a_cookie: Option<String> = jar.get("token").map(|cookie| cookie.value().to_owned());
 
-
-
     if let Some(jwt) = jwt_in_a_cookie {
-        println!("Cookie: {:?}", jwt);
-
         let token = dotenv::var("TOKEN").unwrap();
         let secret = token.split("|").nth(1).expect("Token is formatted incorrectly. Please check your .env file. The token should be in the format TOKEN_ID|TOKEN_SECRET");
         let decoding_key = DecodingKey::from_secret(secret.as_ref());
 
-        if let Ok(mama) = decode::<Claims>(&jwt, &decoding_key, &Validation::default()) {
-            match mama.claims.console_type.as_str() {
+        if let Ok(jwt) = decode::<Claims>(&jwt, &decoding_key, &Validation::default()) {
+            match jwt.claims.console_type.as_str() {
                 "novnc" => {
-                    return Ok(ws.on_upgrade(proxy_novnc_traffic));
+                    return Ok(ws.on_upgrade(|ws: WebSocket| { proxy_novnc_traffic(jwt.claims.server_uuid, ws) }));
                 }
                 _ => {
+                    println!("{:#?}", jwt);
                     return Err(StatusCode::BAD_REQUEST);
                 }
             }
         } else {
+            println!("Invalid token");
             return Err(StatusCode::BAD_REQUEST);
         }
     } else {
+        println!("No cookie found");
         return Err(StatusCode::BAD_REQUEST);
     }
 }

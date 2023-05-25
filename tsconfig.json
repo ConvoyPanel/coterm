@@ -6,7 +6,7 @@
     "skipLibCheck": true,
     "baseUrl": ".",
     "paths": {
-        "@/*": ["resources/scripts/*"]
+        "@/*": ["src/*"]
     },
 
     /* Bundler mode */
