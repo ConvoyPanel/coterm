@@ -56,7 +56,6 @@ struct Claims {
 
 #[tokio::main]
 async fn main() {
-    println!("{}", env!("CARGO_MANIFEST_DIR"));
     dotenv().ok();
 
     let cors = CorsLayer::new().allow_origin(Any);
@@ -65,7 +64,6 @@ async fn main() {
 
     let app = Router::new()
         .route("/ws", get(authenticate_and_upgrade))
-        .route("/test", get(test))
         .nest_service("/", ServeDir::new(assets_dir))
         .layer(cors);
 
