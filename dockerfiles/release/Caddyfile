@@ -1,0 +1,10 @@
+{$APP_URL} {
+    reverse_proxy :3000
+    encode gzip
+
+    @static {
+        file
+        path *.ico *.css *.js *.gif *.webp *.avif *.jpg *.jpeg *.png *.svg *.woff *.woff2
+    }
+    header @static Cache-Control max-age=5184000
+}

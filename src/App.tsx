@@ -11,6 +11,7 @@ const App = () => {
     const [consoleType, setConsoleType] = useState<z.infer<
         typeof consoleTypeSchema
     > | null>(null)
+    const port = import.meta.env.DEV ? 3000 : undefined
 
     if (!alreadyRanMiddleware || hasErrors) {
         const queryParams = new URLSearchParams(window.location.search)
@@ -22,12 +23,14 @@ const App = () => {
         if (queryConsoleType.success) {
             setConsoleType(queryConsoleType.data)
         } else {
-            setHasErrors(true)
+            if (!hasErrors) setHasErrors(true)
+
             return <NoTokenFoundModal open={true} />
         }
 
         if (!token || token.length === 0) {
-            setHasErrors(true)
+            if (!hasErrors) setHasErrors(true)
+
             return <UnsupportedConsoleModal open={true} />
         }
 
@@ -39,7 +42,9 @@ const App = () => {
         <>
             {consoleType === 'novnc' && (
                 <iframe
-                    src='noVNC/vnc.html?host=localhost&port=3000&path=ws&resize=scale&autoconnect=1&reconnect=1&reconnect_delay=500'
+                    src={`noVNC/vnc.html?${
+                        port ? `port=${port}&` : ''
+                    }path=ws&resize=scale&autoconnect=1&reconnect=1&reconnect_delay=500`}
                     className='w-full h-full'
                 ></iframe>
             )}

@@ -13,8 +13,7 @@ const NoTokenFoundModal = ({ open }: Props) => {
 
             <Modal.Body>
                 <Modal.Description>
-                    No token was found in your browser. Please log out and log
-                    back in to resolve this issue.
+                    No token was found with your web console session. Please return back to Convoy and relaunch your web console.
                 </Modal.Description>
             </Modal.Body>
             <Modal.Actions>

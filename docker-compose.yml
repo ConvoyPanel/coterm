@@ -1,6 +1,7 @@
 services:
   workspace:
-    build: .
+    build:
+      context: ./dockerfiles/workspace
     tty: true
     volumes:
       - .:/workspace

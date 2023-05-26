@@ -13,8 +13,7 @@ const UnsupportedConsoleModal = ({ open }: Props) => {
 
             <Modal.Body>
                 <Modal.Description>
-                    No token was found in your browser. Please log out and log
-                    back in to resolve this issue.
+                    The console you are attempting to access is not supported by Convoy. Please return back to Convoy and relaunch your web console.
                 </Modal.Description>
             </Modal.Body>
             <Modal.Actions>
