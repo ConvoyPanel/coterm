@@ -1,0 +1,44 @@
+{
+  "name": "coterm",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev:full": "concurrently \"cargo watch -w src-rust -x run\" \"npm run dev:frontend\"",
+    "dev:frontend": "vite --host 0.0.0.0",
+    "build": "tsc && vite build",
+    "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@emotion/react": "^11.11.0",
+    "@emotion/styled": "^11.11.0",
+    "@headlessui/react": "^1.7.14",
+    "@mantine/core": "^6.0.11",
+    "@mantine/hooks": "^6.0.11",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "twin.macro": "^3.3.1",
+    "vite-plugin-babel-macros": "^1.0.6",
+    "xterm": "^5.1.0",
+    "xterm-addon-attach": "^0.8.0",
+    "xterm-addon-fit": "^0.7.0",
+    "zod": "^3.21.4"
+  },
+  "devDependencies": {
+    "@types/react": "^18.0.28",
+    "@types/react-dom": "^18.0.11",
+    "@typescript-eslint/eslint-plugin": "^5.57.1",
+    "@typescript-eslint/parser": "^5.57.1",
+    "@vitejs/plugin-react-swc": "^3.0.0",
+    "autoprefixer": "^10.4.14",
+    "concurrently": "^8.0.1",
+    "eslint": "^8.38.0",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "eslint-plugin-react-refresh": "^0.3.4",
+    "postcss": "^8.4.23",
+    "tailwindcss": "^3.3.1",
+    "typescript": "^5.0.2",
+    "vite": "^4.3.0"
+  }
+}
