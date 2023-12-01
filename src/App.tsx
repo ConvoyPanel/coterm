@@ -44,7 +44,7 @@ const App = () => {
                 <iframe
                     src={`noVNC/vnc.html?${
                         port ? `port=${port}&` : ''
-                    }path=ws&resize=scale&autoconnect=1&reconnect=1&reconnect_delay=500`}
+                    }host=${location.hostname}&path=ws&resize=scale&autoconnect=1&reconnect=1&reconnect_delay=500`}
                     className='w-full h-full'
                 ></iframe>
             )}

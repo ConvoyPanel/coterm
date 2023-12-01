@@ -76,10 +76,6 @@ async fn main() {
         .unwrap();
 }
 
-async fn test() -> Result<(), impl IntoResponse> {
-    Err((StatusCode::BAD_REQUEST, "joe"))
-}
-
 async fn authenticate_and_upgrade(
     jar: CookieJar,
     ws: WebSocketUpgrade,
