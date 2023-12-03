@@ -5,7 +5,7 @@
     import { onMount } from 'svelte'
 
     onMount(() => {
-        toast(`Coterm v${import.meta.env.APP_VERSION}`)
+        toast(`Coterm v${import.meta.env.APP_VERSION} was loaded`)
     })
 </script>
 
