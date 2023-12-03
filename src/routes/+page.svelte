@@ -1,2 +1,14 @@
-<h1>Welcome to SvelteKit</h1>
-<p>Visit <a href="https://kit.svelte.dev">kit.svelte.dev</a> to read the documentation</p>
+<script lang='ts'>
+    import type { PageData } from './$types'
+    import NoVNC from '$lib/components/terminals/NoVNC.svelte'
+    import XTermJS from '$lib/components/terminals/XTermJS.svelte'
+
+    export let data: PageData
+
+    const terminals = {
+        'novnc': NoVNC,
+        'xtermjs': XTermJS,
+    }
+</script>
+
+<svelte:component this={terminals[data.type]} />
