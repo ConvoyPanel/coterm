@@ -7,8 +7,8 @@ use axum::routing::get;
 use axum_extra::extract::CookieJar;
 use jsonwebtoken::{decode, DecodingKey, Validation};
 use serde::{Deserialize, Serialize};
+
 use crate::app::AppState;
-use crate::util::exceptions::DisplayError;
 use crate::util::terminals::novnc::start_novnc_proxy;
 
 pub fn create_route() -> Router<AppState> {

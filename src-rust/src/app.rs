@@ -1,5 +1,6 @@
-use axum::{Router, ServiceExt};
-use axum::routing::IntoMakeService;
+use axum::Router;
+use dotenv::var;
+
 use crate::routes;
 use crate::util::broadcast_config::create_assets_service;
 
@@ -11,12 +12,14 @@ pub struct AppState {
 }
 
 pub async fn create_app() -> Router {
-    let mut token_combined = dotenv!("TOKEN").split("|");
-    let token_id = token_combined.nth(0).expect("Your Coterm configuration is missing a properly formatted token value.");
-    let token = token_combined.nth(0).expect("Your Coterm configuration is missing a properly formatted token value.");
+    let token_env = var("TOKEN").expect("TOKEN is not set.");
+    let token_cloned = token_env.clone();
+    let mut token_combined = token_cloned.split("|");
+    let token_id = token_combined.next().expect("Your Coterm configuration is missing a properly formatted token value.");
+    let token = token_combined.next().expect("Your Coterm configuration is missing a properly formatted token value.");
 
     let state = AppState {
-        token_combined: dotenv!("TOKEN").to_owned(),
+        token_combined: token_env,
         token: token.to_owned(),
         token_id: token_id.to_owned(),
     };

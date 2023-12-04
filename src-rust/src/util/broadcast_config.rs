@@ -1,9 +1,10 @@
 use std::path::PathBuf;
+use dotenv::var;
 
 use tower_http::services::ServeDir;
 
 pub fn get_broadcast_port() -> u16 {
-    return dotenv::var("BACKEND_PORT").unwrap_or("3000".to_string()).parse().unwrap();
+    return var("BACKEND_PORT").unwrap_or("3000".to_string()).parse().unwrap();
 }
 
 pub fn create_assets_service() -> ServeDir {

@@ -19,10 +19,5 @@
             href='https://discord.convoypanel.com' target='_blank'
             class='underline underline-offset-4'>Discord community</a>.
         </Card.Content>
-        {#if import.meta.env.CONVOY_URL}
-            <Card.Footer class='flex justify-end'>
-                <Button href={import.meta.env.CONVOY_URL}>Return to Convoy</Button>
-            </Card.Footer>
-        {/if}
     </Card.Root>
 </div>

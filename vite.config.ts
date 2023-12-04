@@ -10,7 +10,6 @@ export default defineConfig({
         'import.meta.env.APP_VERSION': JSON.stringify(
             process.env.npm_package_version
         ),
-        'import.meta.env.CONVOY_URL': JSON.stringify(process.env.CONVOY_URL),
         'import.meta.env.BACKEND_URL': JSON.stringify(process.env.BACKEND_URL),
     },
 })

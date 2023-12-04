@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use dotenv::var;
 
 use reqwest::Client;
 use serde::Deserialize;
@@ -25,7 +26,7 @@ pub async fn create_novnc_credentials(server_uuid: String) -> Result<NoVncCreden
         .post(
             format!(
                 "{convoy_url}/api/coterm/servers/{uuid}/create-console-session",
-                convoy_url = dotenv!("CONVOY_URL"),
+                convoy_url = var("CONVOY_URL").expect("CONVOY_URL is not set."),
                 uuid = server_uuid
             )
         )

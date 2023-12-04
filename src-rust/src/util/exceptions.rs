@@ -1,7 +1,6 @@
 use axum::body::{Body, Bytes};
-use axum::response::IntoResponse;
 use axum::http::{Response, StatusCode};
-
+use axum::response::IntoResponse;
 
 pub struct DisplayError {
     pub status: StatusCode,

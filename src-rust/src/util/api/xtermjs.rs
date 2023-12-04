@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use dotenv::var;
 
 use reqwest::Client;
 use serde::Deserialize;
@@ -26,7 +27,7 @@ pub async fn create_xtermjs_credentials(server_uuid: String) -> Result<XTermjsCr
         .post(
             format!(
                 "{convoy_url}/api/coterm/servers/{uuid}/create-console-session",
-                convoy_url = dotenv::var("CONVOY_URL").unwrap(),
+                convoy_url = var("CONVOY_URL").unwrap(),
                 uuid = server_uuid
             )
         )

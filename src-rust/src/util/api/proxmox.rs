@@ -1,9 +1,10 @@
 use tokio_tungstenite::tungstenite::handshake::client::{generate_key, Request};
 use tokio_tungstenite::tungstenite::http::header::{CONNECTION, SEC_WEBSOCKET_KEY, SEC_WEBSOCKET_PROTOCOL, SEC_WEBSOCKET_VERSION, UPGRADE};
 use tokio_tungstenite::tungstenite::http::request::Builder;
+use urlencoding::encode;
+
 use crate::util::api::novnc::NoVncCredentials;
 use crate::util::api::xtermjs::XTermjsCredentials;
-use urlencoding::encode;
 
 pub enum Credentials {
     XTerm(XTermjsCredentials),

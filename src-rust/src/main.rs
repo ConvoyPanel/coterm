@@ -2,12 +2,13 @@
 extern crate dotenv_codegen;
 
 use std::net::SocketAddr;
-use axum::ServiceExt;
+
 use dotenv::dotenv;
 use tracing::info;
 
 use crate::app::create_app;
 use crate::util::broadcast_config::show_brand_message;
+use tokio::signal::unix::{signal, SignalKind};
 
 mod util;
 mod app;
@@ -24,5 +25,21 @@ async fn main() {
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     info!("Convoy terminal is ready at {addr}");
 
-    axum::serve(listener, create_app().await.into_make_service()).await.unwrap();
+    let server = async {
+        axum::serve(listener, create_app().await.into_make_service()).await.unwrap();
+    };
+
+    let mut signal_stream = signal(SignalKind::terminate()).unwrap();
+
+    tokio::select! {
+        _ = server => {
+            // do nothing
+        }
+        _ = tokio::signal::ctrl_c() => {
+            info!("Convoy terminal is shutting down");
+        }
+        _ = signal_stream.recv() => {
+            info!("Convoy terminal is shutting down");
+        }
+    }
 }

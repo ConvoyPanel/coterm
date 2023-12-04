@@ -1,15 +1,16 @@
-use std::rc::Rc;
 use std::sync::Arc;
+
+use axum::extract::ws::Message as AMessage;
 use axum::extract::ws::WebSocket;
 use futures_util::{SinkExt, StreamExt};
-use tokio::net::TcpStream;
-use tokio_tungstenite::{tungstenite::Message as TMessage, MaybeTlsStream, WebSocketStream};
-use crate::util::api::novnc::{create_novnc_credentials, NoVncCredentials};
-use crate::util::api::proxmox::{build_ws_request, Credentials};
-use axum::extract::ws::Message as AMessage;
 use futures_util::stream::{SplitSink, SplitStream};
 use tokio::join;
+use tokio::net::TcpStream;
 use tokio::sync::Mutex;
+use tokio_tungstenite::{MaybeTlsStream, tungstenite::Message as TMessage, WebSocketStream};
+
+use crate::util::api::novnc::{create_novnc_credentials, NoVncCredentials};
+use crate::util::api::proxmox::{build_ws_request, Credentials};
 use crate::util::crypto::des;
 use crate::util::websocket::{convert_axum_to_tungstenite, convert_tungstenite_to_axum};
 
@@ -20,8 +21,8 @@ pub async fn start_novnc_proxy(server_uuid: String, client_ws: WebSocket) {
             Credentials::NoVnc(credentials.clone())
         ).body(()).unwrap()
     ).await.unwrap();
-    let (mut client_sender, mut client_receiver) = client_ws.split();
-    let (mut remote_sender, mut remote_receiver) = remote_ws.split();
+    let (client_sender, client_receiver) = client_ws.split();
+    let (remote_sender, remote_receiver) = remote_ws.split();
 
     let client_sender = Arc::new(Mutex::new(client_sender));
     let client_receiver = Arc::new(Mutex::new(client_receiver));
