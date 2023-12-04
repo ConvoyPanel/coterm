@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use reqwest::Client;
 use serde::Deserialize;
+use serde_json::Value;
 
 use crate::util::api::http::get_headers_with_authorization;
 
@@ -35,8 +36,9 @@ pub async fn create_novnc_credentials(server_uuid: String) -> Result<NoVncCreden
         .unwrap();
 
     if response.status().is_success() {
-        let response_body = response.json::<NoVncCredentials>().await.unwrap();
-        Ok(response_body)
+        let data: Value = serde_json::from_str(&response.text().await.unwrap()).unwrap();
+        let credentials: NoVncCredentials = serde_json::from_value(data["data"].clone()).unwrap();
+        Ok(credentials)
     } else {
         Err(response.error_for_status().unwrap_err())
     }

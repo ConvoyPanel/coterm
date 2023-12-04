@@ -37,6 +37,7 @@ pub async fn create_xtermjs_credentials(server_uuid: String) -> Result<XTermjsCr
         .unwrap();
 
     if response.status().is_success() {
+        // TODO: MUST READ FROM NESTED DATA PROPERTY
         let response_body = response.json::<XTermjsCredentials>().await.unwrap();
         Ok(response_body)
     } else {

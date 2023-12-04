@@ -20,7 +20,6 @@ pub async fn start_novnc_proxy(server_uuid: String, client_ws: WebSocket) {
             Credentials::NoVnc(credentials.clone())
         ).body(()).unwrap()
     ).await.unwrap();
-
     let (mut client_sender, mut client_receiver) = client_ws.split();
     let (mut remote_sender, mut remote_receiver) = remote_ws.split();
 
@@ -30,7 +29,6 @@ pub async fn start_novnc_proxy(server_uuid: String, client_ws: WebSocket) {
     let remote_sender = Arc::new(Mutex::new(remote_sender));
     let remote_receiver = Arc::new(Mutex::new(remote_receiver));
 
-
     authenticate(
         client_sender.clone(),
         client_receiver.clone(),
@@ -38,7 +36,6 @@ pub async fn start_novnc_proxy(server_uuid: String, client_ws: WebSocket) {
         remote_receiver.clone(),
         credentials,
     ).await;
-
 
     let client_to_remote = async {
         while let Some(Ok(msg)) = client_receiver.lock().await.next().await {
@@ -67,6 +64,13 @@ async fn authenticate(
             if msg == AMessage::Binary(vec![1]) {
                 break;
             }
+
+            remote_sender
+                .lock()
+                .await
+                .send(convert_axum_to_tungstenite(msg))
+                .await
+                .unwrap();
         }
     };
 
@@ -74,7 +78,7 @@ async fn authenticate(
         let mut messages_received = 0;
 
         while let Some(Ok(msg)) = remote_receiver.lock().await.next().await {
-            if messages_received < 5 { // TODO: change this to 3
+            if messages_received < 3 {
                 messages_received += 1;
             }
 
@@ -91,6 +95,7 @@ async fn authenticate(
                     .send(AMessage::Binary(vec![1, 1]))
                     .await
                     .unwrap();
+
                 continue;
             }
 
@@ -121,6 +126,13 @@ async fn authenticate(
 
                 break;
             }
+
+            client_sender
+                .lock()
+                .await
+                .send(convert_tungstenite_to_axum(msg))
+                .await
+                .unwrap();
         }
     };
 

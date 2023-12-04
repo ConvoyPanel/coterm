@@ -18,6 +18,10 @@ export const getBackendPort = (): number => {
         return 3000
     }
 
+    if (window.location.port !== '') {
+        return parseInt(window.location.port)
+    }
+
     return window.location.protocol === 'https:' ? 443 : 80
 }
 

@@ -13,7 +13,7 @@ pub struct AppState {
 pub async fn create_app() -> Router {
     let mut token_combined = dotenv!("TOKEN").split("|");
     let token_id = token_combined.nth(0).expect("Your Coterm configuration is missing a properly formatted token value.");
-    let token = token_combined.nth(1).expect("Your Coterm configuration is missing a properly formatted token value.");
+    let token = token_combined.nth(0).expect("Your Coterm configuration is missing a properly formatted token value.");
 
     let state = AppState {
         token_combined: dotenv!("TOKEN").to_owned(),

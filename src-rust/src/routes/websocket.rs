@@ -22,15 +22,11 @@ struct Claims {
     console_type: String,
 }
 
-async fn start_ws_session(ws: WebSocketUpgrade, State(state): State<AppState>, jar: CookieJar) -> Result<impl IntoResponse, impl IntoResponse> {
+async fn start_ws_session(ws: WebSocketUpgrade, State(state): State<AppState>, jar: CookieJar) -> Result<impl IntoResponse, StatusCode> {
     let jwt = jar.get("token")
         .map(|cookie| cookie.value().to_owned())
-        .ok_or(DisplayError {
-            status: StatusCode::UNAUTHORIZED,
-            message: "No token was found.",
-        })?;
+        .ok_or(StatusCode::UNAUTHORIZED)?;
     let decoding_key = DecodingKey::from_secret(state.token.as_ref());
-
     if let Ok(jwt) = decode::<Claims>(&jwt, &decoding_key, &Validation::default()) {
         match jwt.claims.console_type.as_str() {
             "novnc" => {
@@ -38,16 +34,10 @@ async fn start_ws_session(ws: WebSocketUpgrade, State(state): State<AppState>, j
             }
             _ => {
                 println!("{:#?}", jwt);
-                return Err(DisplayError {
-                    status: StatusCode::BAD_REQUEST,
-                    message: "Token requests an invalid console type.",
-                });
+                return Err(StatusCode::BAD_REQUEST);
             }
         }
     } else {
-        return Err(DisplayError {
-            status: StatusCode::BAD_REQUEST,
-            message: "Your token is invalid.",
-        });
+        return Err(StatusCode::BAD_REQUEST);
     }
 }
