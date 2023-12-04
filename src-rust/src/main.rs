@@ -24,8 +24,5 @@ async fn main() {
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     info!("Convoy terminal is ready at {addr}");
 
-    axum::Server::bind(&addr)
-        .serve(create_app().await.into_make_service())
-        .await
-        .unwrap();
+    axum::serve(listener, create_app().await.into_make_service()).await.unwrap();
 }
