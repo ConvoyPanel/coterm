@@ -1,42 +1,27 @@
-use axum::extract::ws::{CloseFrame as ACloseFrame, Message as AMessage};
-use axum::http::HeaderMap;
-use axum::{
-    body::{boxed, Body, BoxBody},
-    extract::ws::{WebSocket, WebSocketUpgrade},
-    http::{Response, StatusCode, Uri},
-    response::IntoResponse,
-    routing::get,
-    Router,
-};
-use base64;
-use base64::{engine::general_purpose, Engine as _};
-use dotenv::dotenv;
-use futures_util::{sink::SinkExt, stream::StreamExt};
-use httparse::{Header, Request, EMPTY_HEADER};
-use jsonwebtoken::{decode, DecodingKey, Validation};
-use rand::Rng;
-use reqwest::Client;
-use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::{net::SocketAddr, path::PathBuf};
+
+use axum::{
+    body::{BoxBody, boxed},
+    extract::ws::WebSocket,
+};
+use axum::extract::ws::Message as AMessage;
+use axum::http::HeaderMap;
+use base64;
+use base64::Engine as _;
+use futures_util::{sink::SinkExt, stream::StreamExt};
+use reqwest::Client;
+use serde::Deserialize;
+use serde_json::Value;
 use tokio::join;
 use tokio::sync::Mutex;
-use tokio_tungstenite::tungstenite::Error as TWebSocketError;
 use tokio_tungstenite::{
     connect_async,
-    tungstenite::{
-        protocol::frame::coding::CloseCode as TCloseCode, protocol::CloseFrame as TCloseFrame,
-        Message as TMessage,
-    },
+    tungstenite::Message as TMessage,
 };
-use tower_http::cors::{Any, CorsLayer};
-use tower_http::services::ServeDir;
-use urlencoding::encode;
 
 use crate::des;
-use crate::helpers::{create_request, self, convert_axum_to_tungstenite, convert_tungstenite_to_axum};
+use crate::helpers::{self, convert_axum_to_tungstenite, convert_tungstenite_to_axum, create_request};
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct NoVncCredentials {
@@ -93,7 +78,7 @@ pub async fn proxy_novnc_traffic(server_uuid: String, client_socket: WebSocket) 
         .await
         .unwrap();
 
-        let (remote_sender, mut remote_receiver) = remote_socket.split();
+    let (remote_sender, mut remote_receiver) = remote_socket.split();
     let remote_sender = Arc::new(Mutex::new(remote_sender));
 
     // send from client to remote and back
@@ -124,7 +109,7 @@ pub async fn proxy_novnc_traffic(server_uuid: String, client_socket: WebSocket) 
                 messages_received += 1;
             }
 
-            if msg == TMessage::Binary(vec![1,2]) {
+            if msg == TMessage::Binary(vec![1, 2]) {
                 let remote_sender = remote_sender.clone();
                 remote_sender
                     .lock()
@@ -167,12 +152,10 @@ pub async fn proxy_novnc_traffic(server_uuid: String, client_socket: WebSocket) 
             }
 
 
-
             client_sender
                 .send(convert_tungstenite_to_axum(msg))
                 .await
                 .unwrap();
-
         }
     };
 
