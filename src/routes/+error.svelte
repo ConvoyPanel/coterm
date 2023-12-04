@@ -12,7 +12,7 @@
         <Card.Content>
             <p>We're sorry. Convoy terminal encountered an error when initializing your console.</p>
             <h4 class='tracking-tight font-semibold text-md pt-4'>If you're a client</h4>
-            <p>Verify that you're opening Convoy terminal through your server's dashboard. Also, sessions cannot be
+            <p>Verify that you opened Convoy terminal through your server's dashboard. Also, sessions cannot be
                 resumed
                 after they're disconnected, so a new session must be created. Other than that, incessantly bug your
                 administrator if
@@ -28,7 +28,7 @@
                 verify that your configuration for Convoy terminal is correct. <br /><br /> We're not sure how helpful
                 these
                 tips
-                are, but it's worth a try. </p>
+                are, but they're worth a try. </p>
         </Card.Content>
         {#if import.meta.env.CONVOY_URL}
             <Card.Footer class='flex justify-end'>
