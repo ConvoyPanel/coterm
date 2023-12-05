@@ -85,4 +85,4 @@ jobs:
           name: ${{ steps.extract_changelog.outputs.version_name }}
           bodyFile: ./RELEASE_CHANGELOG
           draft: true
-          prerelease: ${{ contains(github.ref, 'beta') || contains(github.ref, 'al
+          prerelease: ${{ contains(github.ref, 'beta') || contains(github.ref, 'alpha') }}
