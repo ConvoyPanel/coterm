@@ -11,7 +11,7 @@ Convoy terminal is a console proxy for Convoy that hides the Proxmox origin IP a
 ## Quick start
 
 ```
-docker -p 3000:3000 -e CONVOY_URL="<panel url>" -e TOKEN="<coterm token>" ghcr.io/convoypanel/coterm:latest
+docker run -p 3000:3000 -e CONVOY_URL="<panel url>" -e TOKEN="<coterm token>" ghcr.io/convoypanel/coterm:latest
 ```
 The port can be modified by editing the first number to a different value. For example, if you want to broadcast on port 80, you do `...-p 80:3000...`. More information about publishing ports can be found [here](https://docs.docker.com/network/#published-ports) on the Docker documentation.
 
