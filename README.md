@@ -4,7 +4,7 @@
 
 **NOTICE: Xterm.js support is currently not implemented. I'm asking the community for support in helping us reverse engineer the network layer of Proxmox's Xterm.js sessions.**
 
-# Convoy Terminal
+# Convoy terminal
 
 Convoy terminal is a console proxy for Convoy that hides the Proxmox origin IP address. Written with Rust and utilizing Svelte, Coterm is built for performance, and every millisecond counts.
 
