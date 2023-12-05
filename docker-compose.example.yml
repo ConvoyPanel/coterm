@@ -1,0 +1,19 @@
+services:
+  caddy:
+    image: caddy:2
+    network_mode: host
+    volumes:
+      - ./caddy:/data/caddy
+    command:
+      - /bin/sh
+      - -c
+      - |
+        cat <<EOF > /etc/caddy/Caddyfile && caddy run --config /etc/caddy/Caddyfile
+        
+        {$COTERM_URL} {
+          reverse_proxy coterm:3000
+        }
+        EOF
+  
+  coterm:
+    image: ghcr.io/convoypanel/coterm:latest
