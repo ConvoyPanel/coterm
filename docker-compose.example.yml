@@ -2,6 +2,7 @@ services:
   caddy:
     image: caddy:2
     network_mode: host
+    restart: unless-stopped
     volumes:
       - ./caddy:/data/caddy
     command:
@@ -17,3 +18,4 @@ services:
   
   coterm:
     image: ghcr.io/convoypanel/coterm:latest
+    restart: unless-stopped
