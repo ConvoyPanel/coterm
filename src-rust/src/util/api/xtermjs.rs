@@ -3,8 +3,10 @@ use dotenv::var;
 
 use reqwest::Client;
 use serde::Deserialize;
+use serde_json::Value;
 
 use crate::util::api::http::get_headers_with_authorization;
+use crate::util::api::novnc::NoVncCredentials;
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct XTermjsCredentials {
@@ -38,9 +40,9 @@ pub async fn create_xtermjs_credentials(server_uuid: String) -> Result<XTermjsCr
         .unwrap();
 
     if response.status().is_success() {
-        // TODO: MUST READ FROM NESTED DATA PROPERTY
-        let response_body = response.json::<XTermjsCredentials>().await.unwrap();
-        Ok(response_body)
+        let data: Value = serde_json::from_str(&response.text().await.unwrap()).unwrap();
+        let credentials: XTermjsCredentials = serde_json::from_value(data["data"].clone()).unwrap();
+        Ok(credentials)
     } else {
         Err(response.error_for_status().unwrap_err())
     }

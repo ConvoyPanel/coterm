@@ -1,23 +1,48 @@
 <script lang='ts'>
-    import * as Card from '$lib/components/ui/card'
-    import { Button } from '$lib/components/ui/button'
-    import { page } from '$app/stores'
+    import { onDestroy, onMount } from 'svelte'
+    import { Terminal } from 'xterm'
+    import { FitAddon } from 'xterm-addon-fit'
+    import { AttachAddon } from 'xterm-addon-attach'
+    import 'xterm/css/xterm.css'
+    import { getBackendHost, getBackendPort } from '$lib/api/http'
+
+    let terminalDom: HTMLElement
+    let handleWindowResize: () => void
+
+    onMount(() => {
+        const xterm = new Terminal()
+
+        /* Load add-ons */
+        const fitAddon = new FitAddon()
+        xterm.loadAddon(fitAddon)
+
+        /* Attach to websocket */
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+        const socket = new WebSocket(`${protocol}//${getBackendHost()}:${getBackendPort()}/ws`)
+        socket.binaryType = 'arraybuffer'
+        socket.onmessage = (event) => {
+
+            const response = new Uint8Array(event.data)
+            xterm.write(response)
+        }
+
+        xterm.onData((data) => {
+            socket.send('0:' + unescape(encodeURIComponent(data)).length.toString() + ':' + data)
+        })
+
+        xterm.open(terminalDom)
+
+        fitAddon.fit()
+        handleWindowResize = () => {
+            fitAddon.fit()
+        }
+
+        window.addEventListener('resize', handleWindowResize)
+    })
+
+    onDestroy(() => {
+        window.removeEventListener('resize', handleWindowResize)
+    })
 </script>
 
-<div class='w-full h-full grid place-items-center p-3'>
-    <Card.Root class='max-w-lg w-full'>
-        <Card.Header>
-            <Card.Title>XTerm.js is unsupported</Card.Title>
-        </Card.Header>
-        <Card.Content>
-            <p>We're sorry. Convoy terminal currently doesn't have support for proxying XTerm.js sessions.</p>
-
-            <h4 class='tracking-tight font-semibold text-md pt-4'>If you're a programmer</h4>
-            Help is needed to reverse engineer the network packets sent by XTerm.js on Proxmox. If you're interested in
-            helping, please checkout the <a href='https://github.com/ConvoyPanel/coterm' target='_blank'
-                                            class='underline underline-offset-4'>repository</a> or reach out in the <a
-            href='https://discord.convoypanel.com' target='_blank'
-            class='underline underline-offset-4'>Discord community</a>.
-        </Card.Content>
-    </Card.Root>
-</div>
+<div bind:this={terminalDom} class='terminal h-full' />

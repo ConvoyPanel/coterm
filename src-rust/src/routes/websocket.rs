@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::app::AppState;
 use crate::util::terminals::novnc::start_novnc_proxy;
+use crate::util::terminals::xtermjs::start_xtermjs_proxy;
 
 pub fn create_route() -> Router<AppState> {
     Router::new()
@@ -32,8 +33,10 @@ async fn start_ws_session(ws: WebSocketUpgrade, State(state): State<AppState>, j
             "novnc" => {
                 return Ok(ws.on_upgrade(|ws: WebSocket| { start_novnc_proxy(jwt.claims.server_uuid, ws) }));
             }
+            "xtermjs" => {
+                return Ok(ws.on_upgrade(|ws: WebSocket| { start_xtermjs_proxy(jwt.claims.server_uuid, ws) }));
+            }
             _ => {
-                println!("{:#?}", jwt);
                 return Err(StatusCode::BAD_REQUEST);
             }
         }
