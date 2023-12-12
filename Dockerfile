@@ -1,8 +1,16 @@
-FROM rust:1.74-alpine3.18 as backend
-
+FROM lukemathwalker/cargo-chef:latest-rust-1.74-alpine3.18 AS backend-chef
 WORKDIR /src
+
+
+FROM backend-chef AS backend-planner
 COPY src-rust/ .
 RUN apk add --no-cache musl-dev
+RUN cargo chef prepare --recipe-path recipe.json
+
+FROM backend-chef AS backend
+COPY --from=backend-planner /src/recipe.json recipe.json
+RUN cargo chef cook --release --recipe-path recipe.json
+COPY src-rust/ .
 RUN cargo build --release
 
 
