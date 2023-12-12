@@ -2,10 +2,6 @@
   <img src="https://github.com/ConvoyPanel/coterm/assets/37554696/a79f7746-1ff0-4b7b-af2a-723f0a8f7de8" alt="Coterm banner" />
 </p>
 
-**NOTICE: Xterm.js support is currently not implemented. I'm asking the community for support in helping us reverse
-engineer the network layer of Proxmox's Xterm.js sessions. A write-up on our issue can be
-found [here](https://forum.proxmox.com/threads/cannot-proxy-xterm-js-traffic.137831/).**
-
 # Convoy terminal
 
 Convoy terminal is a console proxy for Convoy that hides the Proxmox origin IP address. Written with Rust and utilizing
