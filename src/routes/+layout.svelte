@@ -1,4 +1,4 @@
-<script>
+<script lang='ts'>
     import '../app.pcss'
     import '@fontsource-variable/inter'
     import { toast, Toaster } from 'svelte-sonner'
@@ -9,5 +9,5 @@
     })
 </script>
 
-<Toaster />
+<Toaster richColors />
 <slot />

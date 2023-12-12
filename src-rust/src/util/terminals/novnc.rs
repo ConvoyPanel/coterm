@@ -42,12 +42,16 @@ pub async fn start_novnc_proxy(server_uuid: String, client_ws: WebSocket) {
         while let Some(Ok(msg)) = client_receiver.lock().await.next().await {
             remote_sender.lock().await.send(convert_axum_to_tungstenite(msg)).await.unwrap();
         }
+
+        remote_sender.lock().await.close().await.unwrap();
     };
 
     let remote_to_client = async {
         while let Some(Ok(msg)) = remote_receiver.lock().await.next().await {
             client_sender.lock().await.send(convert_tungstenite_to_axum(msg)).await.unwrap();
         }
+
+        client_sender.lock().await.close().await.unwrap();
     };
 
     join!(client_to_remote, remote_to_client);

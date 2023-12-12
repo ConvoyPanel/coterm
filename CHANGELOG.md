@@ -4,6 +4,13 @@ This file is a running track of new features and fixes to each version of the pa
 
 This project follows [Semantic Versioning](http://semver.org) guidelines.
 
+## v1.1.0
+
+### Changes
+
+- Added support for XTerm.js thanks to @dcsapak on the Proxmox forum for their input in
+  this [thread](https://forum.proxmox.com/threads/cannot-proxy-xterm-js-traffic.137831/).
+
 ## v1.0.0
 
 ### Changes
