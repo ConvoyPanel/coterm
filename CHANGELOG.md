@@ -10,6 +10,8 @@ This project follows [Semantic Versioning](http://semver.org) guidelines.
 
 - Added support for XTerm.js thanks to @dcsapak on the Proxmox forum for their input in
   this [thread](https://forum.proxmox.com/threads/cannot-proxy-xterm-js-traffic.137831/).
+- Bump webpki from 0.22.0 to 0.22.4 in #2 to patch CPU denial of service in certificate path building.
+- Bump tokio-tungstenite from 0.18.0 to 0.21.0 to patch denial of service attack.
 
 ## v1.0.0
 
