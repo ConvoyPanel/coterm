@@ -1,6 +1,3 @@
-#[macro_use]
-extern crate dotenv_codegen;
-
 use std::net::SocketAddr;
 
 use dotenv::dotenv;

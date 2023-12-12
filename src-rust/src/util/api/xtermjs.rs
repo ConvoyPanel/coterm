@@ -6,7 +6,7 @@ use serde::Deserialize;
 use serde_json::Value;
 
 use crate::util::api::http::get_headers_with_authorization;
-use crate::util::api::novnc::NoVncCredentials;
+
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct XTermjsCredentials {
