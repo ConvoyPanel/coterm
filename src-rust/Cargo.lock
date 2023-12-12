@@ -26,7 +26,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "810a80b128d70e6ed2bdf3fe8ed72c0ae56f5f5948d01c2753282dd92a84fce8"
 dependencies = [
  "async-trait",
- "axum-core 0.4.0",
+ "axum-core",
  "axum-macros",
  "base64 0.21.0",
  "bytes",
@@ -52,35 +52,6 @@ dependencies = [
  "tokio",
  "tokio-tungstenite 0.20.1",
  "tower",
- "tower-layer",
- "tower-service",
-]
-
-[[package]]
-name = "axum-auth"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "620b37645b77baab8160f93421568d7b3dd25da0a160fab38eb1c4ef611f6d98"
-dependencies = [
- "async-trait",
- "axum-core 0.3.4",
- "base64 0.13.1",
- "http 0.2.9",
-]
-
-[[package]]
-name = "axum-core"
-version = "0.3.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "759fa577a247914fd3f7f76d62972792636412fbfd634cd452f6a385a74d2d2c"
-dependencies = [
- "async-trait",
- "bytes",
- "futures-util",
- "http 0.2.9",
- "http-body 0.4.5",
- "mime",
- "rustversion",
  "tower-layer",
  "tower-service",
 ]
@@ -112,7 +83,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "523ae92256049a3b02d3bb4df80152386cd97ddba0c8c5077619bdc8c4b1859b"
 dependencies = [
  "axum",
- "axum-core 0.4.0",
+ "axum-core",
  "bytes",
  "cookie",
  "futures-util",
@@ -234,25 +205,19 @@ name = "coterm"
 version = "0.0.0"
 dependencies = [
  "axum",
- "axum-auth",
  "axum-extra",
- "base64 0.21.0",
  "dotenv",
  "dotenv_codegen",
  "futures-util",
- "httparse",
  "jsonwebtoken",
- "rand",
  "reqwest",
  "serde",
  "serde_json",
  "tokio",
  "tokio-tungstenite 0.18.0",
- "tower",
  "tower-http",
  "tracing",
  "tracing-subscriber",
- "url",
  "urlencoding",
 ]
 
