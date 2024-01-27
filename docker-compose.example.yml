@@ -5,13 +5,15 @@ services:
     restart: unless-stopped
     volumes:
       - ./caddy:/data/caddy
+    env_file:
+      - .env
     command:
       - /bin/sh
       - -c
       - |
         cat <<EOF > /etc/caddy/Caddyfile && caddy run --config /etc/caddy/Caddyfile
         
-        {$COTERM_URL} {
+        $$COTERM_URL {
           reverse_proxy coterm:3000
         }
         EOF
@@ -19,3 +21,5 @@ services:
   coterm:
     image: ghcr.io/convoypanel/coterm:latest
     restart: unless-stopped
+    env_file:
+      - .env
