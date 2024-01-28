@@ -1,7 +1,7 @@
 use axum::extract::ws::WebSocket;
 use futures_util::{SinkExt, StreamExt};
 use tokio::join;
-use tokio_tungstenite::Connector;
+
 use tokio_tungstenite::tungstenite::Message as TMessage;
 
 use crate::util::api::proxmox::{build_ws_request, Credentials};
