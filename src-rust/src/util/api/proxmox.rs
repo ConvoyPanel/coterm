@@ -19,8 +19,7 @@ pub fn build_ws_request(credentials: Credentials) -> (Request, Connector) {
         .header(SEC_WEBSOCKET_VERSION, "13")
         .header(SEC_WEBSOCKET_PROTOCOL, "binary")
         .header(CONNECTION, "Upgrade")
-        .header(UPGRADE, "websocket")
-        ;
+        .header(UPGRADE, "websocket");
 
     let do_not_verify_tls = var("DANGEROUS_DISABLE_TLS_VERIFICATION")
         .unwrap_or("false".to_string())

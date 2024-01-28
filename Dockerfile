@@ -13,7 +13,7 @@ RUN cargo chef prepare --recipe-path recipe.json
 FROM backend-chef AS backend
 
 COPY --from=backend-planner /src/recipe.json recipe.json
-RUN apk add --no-cache pkgconfig openssl-dev
+RUN apk add --no-cache pkgconfig openssl-dev musl-dev
 RUN cargo chef cook --release --recipe-path recipe.json
 COPY src-rust/ .
 RUN cargo build --release
