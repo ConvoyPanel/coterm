@@ -1,6 +1,7 @@
 use axum::extract::ws::WebSocket;
 use futures_util::{SinkExt, StreamExt};
 use tokio::join;
+use tokio_tungstenite::Connector;
 use tokio_tungstenite::tungstenite::Message as TMessage;
 
 use crate::util::api::proxmox::{build_ws_request, Credentials};
@@ -10,10 +11,14 @@ use crate::util::websocket::{convert_axum_to_tungstenite, convert_tungstenite_to
 pub async fn start_xtermjs_proxy(server_uuid: String, client_ws: WebSocket) {
     let credentials = create_xtermjs_credentials(server_uuid).await.unwrap();
 
-    let (remote_ws, _) = tokio_tungstenite::connect_async(
-        build_ws_request(
-            Credentials::XTerm(credentials.clone())
-        ).body(()).unwrap()
+    let (request, connector) = build_ws_request(
+        Credentials::XTerm(credentials.clone())
+    );
+    let (remote_ws, _) = tokio_tungstenite::connect_async_tls_with_config(
+        request,
+        None,
+        false,
+        Some(connector),
     ).await.unwrap();
 
     let (mut client_sender, mut client_receiver) = client_ws.split();

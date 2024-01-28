@@ -10,7 +10,7 @@ Svelte, Coterm is built for performance, and every millisecond counts.
 ## Quick start
 
 ```
-docker run -p 3000:3000 -e CONVOY_URL="<panel url>" -e TOKEN="<coterm token>" ghcr.io/convoypanel/coterm:latest
+docker run -p 3000:3000 -e CONVOY_URL="<panel url>" -e COTERM_TOKEN="<coterm token>" ghcr.io/convoypanel/coterm:latest
 ```
 
 The port can be modified by editing the first number to a different value. For example, if you want to broadcast on port

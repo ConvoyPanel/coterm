@@ -16,11 +16,17 @@ use crate::util::websocket::{convert_axum_to_tungstenite, convert_tungstenite_to
 
 pub async fn start_novnc_proxy(server_uuid: String, client_ws: WebSocket) {
     let credentials = create_novnc_credentials(server_uuid).await.unwrap();
-    let (remote_ws, _) = tokio_tungstenite::connect_async(
-        build_ws_request(
-            Credentials::NoVnc(credentials.clone())
-        ).body(()).unwrap()
+
+    let (request, connector) = build_ws_request(
+        Credentials::NoVnc(credentials.clone())
+    );
+    let (remote_ws, _) = tokio_tungstenite::connect_async_tls_with_config(
+        request,
+        None,
+        false,
+        Some(connector),
     ).await.unwrap();
+
     let (client_sender, client_receiver) = client_ws.split();
     let (remote_sender, remote_receiver) = remote_ws.split();
 
