@@ -23,7 +23,7 @@ pub async fn create_app() -> Router {
         .unwrap_or("false".to_string())
         .to_lowercase() == "true";
     if do_not_verify_tls {
-        warn!("TLS verification is disabled. This is dangerous and should only be used for testing purposes.\nYou are vulnerable to man-in-the-middle attacks. This is very irresponsible if you are providing this for end users.");
+        warn!("TLS verification is disabled. This is dangerous and should only be used for testing purposes.\nYou are vulnerable to man-in-the-middle attacks, and this is very irresponsible if you are providing this for end users.");
     }
 
     let state = AppState {

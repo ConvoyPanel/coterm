@@ -4,6 +4,13 @@ This file is a running track of new features and fixes to each version of the pa
 
 This project follows [Semantic Versioning](http://semver.org) guidelines.
 
+## v2.0.0
+
+### Changes
+
+- Added `DANGEROUS_DISABLE_TLS_VERIFICATION` environment variable to disable TLS verification for the backend.
+- Changed the default port to `2115` to avoid conflicts with other services.
+
 ## v1.1.0
 
 ### Changes

@@ -14,12 +14,14 @@ services:
         cat <<EOF > /etc/caddy/Caddyfile && caddy run --config /etc/caddy/Caddyfile
         
         $$COTERM_URL {
-          reverse_proxy coterm:3000
+          reverse_proxy localhost:2115
         }
         EOF
   
   coterm:
     image: ghcr.io/convoypanel/coterm:latest
     restart: unless-stopped
+    ports:
+      - 127.0.0.1:2115:2115
     env_file:
       - .env

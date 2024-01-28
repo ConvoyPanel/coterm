@@ -5,7 +5,7 @@ use tower_http::services::ServeDir;
 use tracing::warn;
 
 pub fn get_broadcast_port() -> u16 {
-    return var("BACKEND_PORT").unwrap_or("3000".to_string()).parse().unwrap();
+    return var("BACKEND_PORT").unwrap_or("2115".to_string()).parse().unwrap();
 }
 
 pub fn create_assets_service() -> ServeDir {
