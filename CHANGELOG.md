@@ -10,6 +10,7 @@ This project follows [Semantic Versioning](http://semver.org) guidelines.
 
 - Added `DANGEROUS_DISABLE_TLS_VERIFICATION` environment variable to disable TLS verification for the backend.
 - Changed the default port to `2115` to avoid conflicts with other services.
+- Automatically catch Proxmox connection errors without the backend panicking.
 
 ## v1.1.0
 
