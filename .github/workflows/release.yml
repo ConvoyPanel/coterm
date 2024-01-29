@@ -21,21 +21,12 @@ jobs:
         with:
           submodules: true
 
-      - name: Create release branch and bump version
+      - name: Bump version
         env:
           REF: ${{ github.ref }}
         run: |
-          BRANCH=release/${REF:10}
-          git config --local user.email "ci@convoypanel.com"
-          git config --local user.name "Convoy CI"
-          git checkout -b $BRANCH
-          git push -u origin $BRANCH
           sed -i 's/"version": "0.0.0",/"version": "'"${REF:11}"'",/' package.json
           sed -i "s/version = \"0.0.0\"/version = \"${REF:11}\"/" src-rust/Cargo.toml
-          git add package.json
-          git add src-rust/Cargo.toml
-          git commit -m "bump version for release"
-          git push -u origin $BRANCH
 
       - name: Generate Image Metadata
         id: meta
