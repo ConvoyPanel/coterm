@@ -12,8 +12,10 @@ RUN cargo chef prepare --recipe-path recipe.json
 
 FROM backend-chef AS backend
 
+ENV OPENSSL_DIR=/usr
+
 COPY --from=backend-planner /src/recipe.json recipe.json
-RUN apk add --no-cache pkgconfig openssl-dev musl-dev
+RUN apk add --no-cache openssl-dev
 RUN cargo chef cook --release --recipe-path recipe.json
 COPY src-rust/ .
 RUN cargo build --release
@@ -23,14 +25,15 @@ FROM node:20.10-alpine3.18 as frontend
 
 WORKDIR /src
 COPY . .
-RUN npm install && npm run build
+RUN npm install
+RUN npm run build
 
 
 FROM alpine:3.18
 
 WORKDIR /var/www
+RUN apk add --no-cache gcompat
 COPY --from=backend /src/target/release/coterm /var/www/
 COPY --from=frontend /src/build /var/www/public
-
 
 CMD ["/var/www/coterm"]
