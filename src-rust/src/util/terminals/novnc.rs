@@ -8,6 +8,7 @@ use tokio::join;
 use tokio::net::TcpStream;
 use tokio::sync::Mutex;
 use tokio_tungstenite::{MaybeTlsStream, tungstenite::Message as TMessage, WebSocketStream};
+use tracing::error;
 
 use crate::util::api::novnc::{create_novnc_credentials, NoVncCredentials};
 use crate::util::api::proxmox::{build_ws_request, Credentials};
@@ -20,12 +21,24 @@ pub async fn start_novnc_proxy(server_uuid: String, client_ws: WebSocket) {
     let (request, connector) = build_ws_request(
         Credentials::NoVnc(credentials.clone())
     );
-    let (remote_ws, _) = tokio_tungstenite::connect_async_tls_with_config(
+    let remote_ws = match tokio_tungstenite::connect_async_tls_with_config(
         request,
         None,
         false,
         Some(connector),
-    ).await.unwrap();
+    ).await {
+        Ok((ws, _)) => ws,
+        Err(e) => {
+            error!(
+                "Failed to connect to Proxmox ({proxmox}): {error}",
+                proxmox = credentials.node_fqdn,
+                error = e,
+            );
+
+            client_ws.close().await.unwrap();
+            return;
+        }
+    };
 
     let (client_sender, client_receiver) = client_ws.split();
     let (remote_sender, remote_receiver) = remote_ws.split();

@@ -3,6 +3,7 @@ use futures_util::{SinkExt, StreamExt};
 use tokio::join;
 
 use tokio_tungstenite::tungstenite::Message as TMessage;
+use tracing::error;
 
 use crate::util::api::proxmox::{build_ws_request, Credentials};
 use crate::util::api::xtermjs::create_xtermjs_credentials;
@@ -14,17 +15,34 @@ pub async fn start_xtermjs_proxy(server_uuid: String, client_ws: WebSocket) {
     let (request, connector) = build_ws_request(
         Credentials::XTerm(credentials.clone())
     );
-    let (remote_ws, _) = tokio_tungstenite::connect_async_tls_with_config(
+    let remote_ws = match tokio_tungstenite::connect_async_tls_with_config(
         request,
         None,
         false,
         Some(connector),
-    ).await.unwrap();
+    ).await {
+        Ok((ws, _)) => ws,
+        Err(e) => {
+            error!(
+                "Failed to connect to Proxmox ({proxmox}): {error}",
+                proxmox = credentials.node_fqdn,
+                error = e,
+            );
+
+            client_ws.close().await.unwrap();
+            return;
+        }
+    };
 
     let (mut client_sender, mut client_receiver) = client_ws.split();
     let (mut remote_sender, mut remote_receiver) = remote_ws.split();
 
-    let payload = format!("{username}@{realm_type}:{ticket}\n", username = credentials.username, realm_type = credentials.realm_type, ticket = credentials.ticket);
+    let payload = format!(
+        "{username}@{realm_type}:{ticket}\n",
+        username = credentials.username,
+        realm_type = credentials.realm_type,
+        ticket = credentials.ticket
+    );
     remote_sender.send(TMessage::Text(payload)).await.unwrap();
 
 
