@@ -21,7 +21,7 @@ jobs:
         with:
           submodules: true
 
-      - name: Bump version
+      - name: Update Embedded Version String
         env:
           REF: ${{ github.ref }}
         run: |
@@ -72,10 +72,9 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Create Release
-        uses: ncipollo/release-action@v1
+        uses: softprops/action-gh-release@v1
         with:
-          tag: ${{ github.ref }}
           name: ${{ steps.extract_changelog.outputs.version_name }}
-          bodyFile: ./RELEASE_CHANGELOG
+          body_path: ./RELEASE_CHANGELOG
           draft: true
           prerelease: ${{ contains(github.ref, 'beta') || contains(github.ref, 'alpha') }}
