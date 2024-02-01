@@ -20,8 +20,7 @@ pub async fn create_app() -> Router {
     let token = token_combined.next().expect("Your Coterm configuration is missing a properly formatted token value.");
 
     let do_not_verify_tls = var("DANGEROUS_DISABLE_TLS_VERIFICATION")
-        .unwrap_or("false".to_string())
-        .to_lowercase() == "true";
+        .unwrap_or("false".to_string()).parse::<bool>().unwrap_or(false);
     if do_not_verify_tls {
         warn!("TLS verification is disabled. This is dangerous and should only be used for testing purposes.\nYou are vulnerable to man-in-the-middle attacks, and this is very irresponsible if you are providing this for end users.");
     }

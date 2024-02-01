@@ -4,6 +4,12 @@ This file is a running track of new features and fixes to each version of the pa
 
 This project follows [Semantic Versioning](http://semver.org) guidelines.
 
+## v2.1.0
+
+### Changes
+
+- Added debug logging with the `DEBUG` environment variable. Setting it `true` will enable debug logging.
+
 ## v2.0.0
 
 ### Changes

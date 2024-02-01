@@ -1,6 +1,6 @@
 use std::net::SocketAddr;
 
-use dotenv::dotenv;
+use dotenv::{dotenv, var};
 use tracing::info;
 
 use crate::app::create_app;
@@ -16,7 +16,13 @@ async fn main() {
     show_brand_message();
 
     dotenv().ok();
-    tracing_subscriber::fmt().init();
+    tracing_subscriber::fmt()
+        .with_max_level(if var("DEBUG").unwrap_or("false".to_string()).parse::<bool>().unwrap_or(false) {
+            tracing::Level::DEBUG
+        } else {
+            tracing::Level::INFO
+        })
+        .init();
 
     let addr = SocketAddr::from(([0, 0, 0, 0], util::broadcast_config::get_broadcast_port()));
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();

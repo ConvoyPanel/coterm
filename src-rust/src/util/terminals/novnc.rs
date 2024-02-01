@@ -8,7 +8,7 @@ use tokio::join;
 use tokio::net::TcpStream;
 use tokio::sync::Mutex;
 use tokio_tungstenite::{MaybeTlsStream, tungstenite::Message as TMessage, WebSocketStream};
-use tracing::error;
+use tracing::{debug, error, Instrument};
 
 use crate::util::api::novnc::{create_novnc_credentials, NoVncCredentials};
 use crate::util::api::proxmox::{build_ws_request, Credentials};
@@ -83,82 +83,92 @@ async fn authenticate(
     remote_receiver: Arc<Mutex<SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>>>,
     credentials: NoVncCredentials,
 ) {
-    let capture_client_messages = async {
-        while let Some(Ok(msg)) = client_receiver.lock().await.next().await {
-            if msg == AMessage::Binary(vec![1]) {
-                break;
-            }
+    let span = tracing::debug_span!("Authenticating noVNC connection for VMID {vmid}", vmid = credentials.vmid);
 
-            remote_sender
-                .lock()
-                .await
-                .send(convert_axum_to_tungstenite(msg))
-                .await
-                .unwrap();
-        }
-    };
+    async move {
+        let capture_client_messages = async {
+            debug!("Waiting for client-side auth...");
+            while let Some(Ok(msg)) = client_receiver.lock().await.next().await {
+                if msg == AMessage::Binary(vec![1]) {
+                    break;
+                }
 
-    let capture_remote_messages = async {
-        let mut messages_received = 0;
-
-        while let Some(Ok(msg)) = remote_receiver.lock().await.next().await {
-            if messages_received < 3 {
-                messages_received += 1;
-            }
-
-            if msg == TMessage::Binary(vec![1, 2]) {
                 remote_sender
                     .lock()
                     .await
-                    .send(TMessage::Binary(vec![2]))
+                    .send(convert_axum_to_tungstenite(msg))
                     .await
                     .unwrap();
+            }
+
+            debug!("Client-side auth complete!")
+        };
+
+        let capture_remote_messages = async {
+            debug!("Waiting for remote-side auth...");
+            let mut messages_received = 0;
+
+            while let Some(Ok(msg)) = remote_receiver.lock().await.next().await {
+                if messages_received < 3 {
+                    messages_received += 1;
+                }
+
+                if msg == TMessage::Binary(vec![1, 2]) {
+                    remote_sender
+                        .lock()
+                        .await
+                        .send(TMessage::Binary(vec![2]))
+                        .await
+                        .unwrap();
+                    client_sender
+                        .lock()
+                        .await
+                        .send(AMessage::Binary(vec![1, 1]))
+                        .await
+                        .unwrap();
+
+                    continue;
+                }
+
+                if messages_received == 3 {
+                    let ticket = credentials.ticket.clone();
+
+                    let mut ticket = ticket.as_bytes().to_owned();
+
+                    // reverse the bits
+                    for i in 0..8 {
+                        let c = ticket[i];
+                        let mut cs = 0u8;
+                        for j in 0..8 {
+                            cs |= ((c >> j) & 1) << (7 - j)
+                        }
+                        ticket[i] = cs;
+                    }
+
+                    let trimmed_ticket: &[u8; 8] = &ticket[0..8].try_into().unwrap();
+                    let challenge = des::encrypt(&msg.into_data(), &trimmed_ticket);
+
+                    remote_sender
+                        .lock()
+                        .await
+                        .send(TMessage::Binary(challenge))
+                        .await
+                        .unwrap();
+
+                    break;
+                }
+
                 client_sender
                     .lock()
                     .await
-                    .send(AMessage::Binary(vec![1, 1]))
+                    .send(convert_tungstenite_to_axum(msg))
                     .await
                     .unwrap();
-
-                continue;
             }
 
-            if messages_received == 3 {
-                let ticket = credentials.ticket.clone();
+            debug!("Remote-side auth complete!")
+        };
 
-                let mut ticket = ticket.as_bytes().to_owned();
-
-                // reverse the bits
-                for i in 0..8 {
-                    let c = ticket[i];
-                    let mut cs = 0u8;
-                    for j in 0..8 {
-                        cs |= ((c >> j) & 1) << (7 - j)
-                    }
-                    ticket[i] = cs;
-                }
-
-                let trimmed_ticket: &[u8; 8] = &ticket[0..8].try_into().unwrap();
-                let challenge = des::encrypt(&msg.into_data(), &trimmed_ticket);
-
-                remote_sender
-                    .lock()
-                    .await
-                    .send(TMessage::Binary(challenge))
-                    .await
-                    .unwrap();
-
-                break;
-            }
-
-            client_sender
-                .lock()
-                .await
-                .send(convert_tungstenite_to_axum(msg))
-                .await
-                .unwrap();
-        }
-    };
-
-    join!(capture_client_messages, capture_remote_messages);
+        join!(capture_client_messages, capture_remote_messages);
+    }.instrument(span).await;
 }
