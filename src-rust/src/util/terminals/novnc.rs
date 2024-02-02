@@ -25,19 +25,25 @@ pub async fn start_novnc_proxy(server_uuid: String, client_ws: WebSocket) {
         let (request, connector) = build_ws_request(
             Credentials::NoVnc(credentials.clone())
         );
+
+        debug!("Connecting to Proxmox...");
         let remote_ws = match tokio_tungstenite::connect_async_tls_with_config(
             request,
             None,
             false,
             Some(connector),
         ).await {
-            Ok((ws, _)) => ws,
+            Ok((ws, _)) => {
+                debug!("Connected to Proxmox");
+
+                ws
+            },
             Err(e) => {
                 error!(
-                "Failed to connect to Proxmox ({proxmox}): {error}",
-                proxmox = credentials.node_fqdn,
-                error = e,
-            );
+                    "Failed to connect to Proxmox ({proxmox}): {error}",
+                    proxmox = credentials.node_fqdn,
+                    error = e,
+                );
 
                 client_ws.close().await.unwrap();
                 return;

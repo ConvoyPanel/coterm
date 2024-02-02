@@ -19,13 +19,19 @@ pub async fn start_xtermjs_proxy(server_uuid: String, client_ws: WebSocket) {
         let (request, connector) = build_ws_request(
             Credentials::XTerm(credentials.clone())
         );
+
+        debug!("Connecting to Proxmox...");
         let remote_ws = match tokio_tungstenite::connect_async_tls_with_config(
             request,
             None,
             false,
             Some(connector),
         ).await {
-            Ok((ws, _)) => ws,
+            Ok((ws, _)) => {
+                debug!("Connected to Proxmox");
+
+                ws
+            },
             Err(e) => {
                 error!(
                 "Failed to connect to Proxmox ({proxmox}): {error}",
