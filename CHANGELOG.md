@@ -4,6 +4,12 @@ This file is a running track of new features and fixes to each version of the pa
 
 This project follows [Semantic Versioning](http://semver.org) guidelines.
 
+## v2.3.1
+
+### Changes
+
+- Added a Rust flag that hopefully fixes the NativeTLS issue?
+
 ## v2.3.0
 
 ### Changes

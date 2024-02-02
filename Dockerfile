@@ -13,6 +13,7 @@ RUN cargo chef prepare --recipe-path recipe.json
 FROM backend-chef AS backend
 
 ENV OPENSSL_DIR=/usr
+ENV RUSTFLAGS='-C target-feature=-crt-static'
 
 COPY --from=backend-planner /src/recipe.json recipe.json
 RUN apk add --no-cache openssl-dev
