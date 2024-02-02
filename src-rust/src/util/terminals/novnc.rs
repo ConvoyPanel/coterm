@@ -8,7 +8,7 @@ use tokio::join;
 use tokio::net::TcpStream;
 use tokio::sync::Mutex;
 use tokio_tungstenite::{MaybeTlsStream, tungstenite::Message as TMessage, WebSocketStream};
-use tracing::{debug, error, Instrument};
+use tracing::{debug, debug_span, error, Instrument};
 
 use crate::util::api::novnc::{create_novnc_credentials, NoVncCredentials};
 use crate::util::api::proxmox::{build_ws_request, Credentials};
@@ -16,64 +16,75 @@ use crate::util::crypto::des;
 use crate::util::websocket::{convert_axum_to_tungstenite, convert_tungstenite_to_axum};
 
 pub async fn start_novnc_proxy(server_uuid: String, client_ws: WebSocket) {
-    let credentials = create_novnc_credentials(server_uuid).await.unwrap();
+    let span = debug_span!("noVNC proxy {server_uuid}", server_uuid = server_uuid.clone());
 
-    let (request, connector) = build_ws_request(
-        Credentials::NoVnc(credentials.clone())
-    );
-    let remote_ws = match tokio_tungstenite::connect_async_tls_with_config(
-        request,
-        None,
-        false,
-        Some(connector),
-    ).await {
-        Ok((ws, _)) => ws,
-        Err(e) => {
-            error!(
+    async move {
+        debug!("Starting proxy...");
+        let credentials = create_novnc_credentials(server_uuid).await.unwrap();
+
+        let (request, connector) = build_ws_request(
+            Credentials::NoVnc(credentials.clone())
+        );
+        let remote_ws = match tokio_tungstenite::connect_async_tls_with_config(
+            request,
+            None,
+            false,
+            Some(connector),
+        ).await {
+            Ok((ws, _)) => ws,
+            Err(e) => {
+                error!(
                 "Failed to connect to Proxmox ({proxmox}): {error}",
                 proxmox = credentials.node_fqdn,
                 error = e,
             );
 
-            client_ws.close().await.unwrap();
-            return;
-        }
-    };
+                client_ws.close().await.unwrap();
+                return;
+            }
+        };
 
-    let (client_sender, client_receiver) = client_ws.split();
-    let (remote_sender, remote_receiver) = remote_ws.split();
+        let (client_sender, client_receiver) = client_ws.split();
+        let (remote_sender, remote_receiver) = remote_ws.split();
 
-    let client_sender = Arc::new(Mutex::new(client_sender));
-    let client_receiver = Arc::new(Mutex::new(client_receiver));
+        let client_sender = Arc::new(Mutex::new(client_sender));
+        let client_receiver = Arc::new(Mutex::new(client_receiver));
 
-    let remote_sender = Arc::new(Mutex::new(remote_sender));
-    let remote_receiver = Arc::new(Mutex::new(remote_receiver));
+        let remote_sender = Arc::new(Mutex::new(remote_sender));
+        let remote_receiver = Arc::new(Mutex::new(remote_receiver));
 
-    authenticate(
-        client_sender.clone(),
-        client_receiver.clone(),
-        remote_sender.clone(),
-        remote_receiver.clone(),
-        credentials,
-    ).await;
+        authenticate(
+            client_sender.clone(),
+            client_receiver.clone(),
+            remote_sender.clone(),
+            remote_receiver.clone(),
+            credentials.clone(),
+        ).await;
 
-    let client_to_remote = async {
-        while let Some(Ok(msg)) = client_receiver.lock().await.next().await {
-            remote_sender.lock().await.send(convert_axum_to_tungstenite(msg)).await.unwrap();
-        }
+        debug!("Authenticated connection");
 
-        remote_sender.lock().await.close().await.unwrap();
-    };
+        let client_to_remote = async {
+            debug!("Forwarding client-to-remote");
+            while let Some(Ok(msg)) = client_receiver.lock().await.next().await {
+                remote_sender.lock().await.send(convert_axum_to_tungstenite(msg)).await.unwrap();
+            }
 
-    let remote_to_client = async {
-        while let Some(Ok(msg)) = remote_receiver.lock().await.next().await {
-            client_sender.lock().await.send(convert_tungstenite_to_axum(msg)).await.unwrap();
-        }
+            remote_sender.lock().await.close().await.unwrap();
+        };
 
-        client_sender.lock().await.close().await.unwrap();
-    };
+        let remote_to_client = async {
+            debug!("Forwarding remote-to-client");
+            while let Some(Ok(msg)) = remote_receiver.lock().await.next().await {
+                client_sender.lock().await.send(convert_tungstenite_to_axum(msg)).await.unwrap();
+            }
 
-    join!(client_to_remote, remote_to_client);
+            client_sender.lock().await.close().await.unwrap();
+        };
+
+        join!(client_to_remote, remote_to_client);
+
+        debug!("Proxy connection closed");
+    }.instrument(span).await;
 }
 
 async fn authenticate(
@@ -83,7 +94,7 @@ async fn authenticate(
     remote_receiver: Arc<Mutex<SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>>>,
     credentials: NoVncCredentials,
 ) {
-    let span = tracing::debug_span!("Authenticating noVNC connection for VMID {vmid}", vmid = credentials.vmid);
+    let span = tracing::debug_span!("Auth-ing noVNC connection {vmid}", vmid = credentials.vmid);
 
     async move {
         let capture_client_messages = async {

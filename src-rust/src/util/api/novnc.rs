@@ -21,6 +21,7 @@ pub struct NoVncCredentials {
 
 pub async fn create_novnc_credentials(server_uuid: String) -> Result<NoVncCredentials, reqwest::Error> {
     async {
+        debug!("Begin creating noVNC creds");
         let mut body = HashMap::new();
         body.insert("type".to_owned(), "novnc".to_owned());
 
@@ -41,9 +42,12 @@ pub async fn create_novnc_credentials(server_uuid: String) -> Result<NoVncCreden
         if response.status().is_success() {
             let data: Value = serde_json::from_str(&response.text().await.unwrap()).unwrap();
             let credentials: NoVncCredentials = serde_json::from_value(data["data"].clone()).unwrap();
+
+            debug!("NoVNC creds created");
             Ok(credentials)
         } else {
+            debug!("Failed to create NoVNC creds");
             Err(response.error_for_status().unwrap_err())
         }
-    }.instrument(debug_span!("Getting NoVNC credentials for server {uuid}", uuid = server_uuid)).await
+    }.instrument(debug_span!("Getting NoVNC creds {server_uuid}", server_uuid = server_uuid)).await
 }

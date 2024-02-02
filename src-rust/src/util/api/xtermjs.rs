@@ -4,7 +4,7 @@ use dotenv::var;
 use reqwest::Client;
 use serde::Deserialize;
 use serde_json::Value;
-use tracing::{debug_span, Instrument};
+use tracing::{debug, debug_span, Instrument};
 
 use crate::util::api::http::get_headers_with_authorization;
 
@@ -24,6 +24,7 @@ pub struct XTermjsCredentials {
 
 pub async fn create_xtermjs_credentials(server_uuid: String) -> Result<XTermjsCredentials, reqwest::Error> {
     async {
+        debug!("Begin creating xterm.js creds");
         let mut body = HashMap::new();
         body.insert("type".to_owned(), "xtermjs".to_owned());
 
@@ -44,8 +45,10 @@ pub async fn create_xtermjs_credentials(server_uuid: String) -> Result<XTermjsCr
         if response.status().is_success() {
             let data: Value = serde_json::from_str(&response.text().await.unwrap()).unwrap();
             let credentials: XTermjsCredentials = serde_json::from_value(data["data"].clone()).unwrap();
+            debug!("xterm.js creds created");
             Ok(credentials)
         } else {
+            debug!("Failed to create xterm.js creds");
             Err(response.error_for_status().unwrap_err())
         }
     }.instrument(debug_span!("Getting xterm.js credentials for server {uuid}", uuid = server_uuid)).await
