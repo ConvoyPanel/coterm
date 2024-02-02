@@ -4,6 +4,12 @@ This file is a running track of new features and fixes to each version of the pa
 
 This project follows [Semantic Versioning](http://semver.org) guidelines.
 
+## v2.3.0
+
+### Changes
+
+- Added another debug log point before constructing the websocket request.
+
 ## v2.2.0
 
 ### Changes
