@@ -1,5 +1,8 @@
+use std::sync::Arc;
+
 use dotenv::var;
-use native_tls::TlsConnector;
+use rustls::{ClientConfig, RootCertStore};
+use rustls_native_certs::load_native_certs;
 use tokio_tungstenite::Connector;
 use tokio_tungstenite::tungstenite::handshake::client::{generate_key, Request};
 use tokio_tungstenite::tungstenite::http::header::{CONNECTION, SEC_WEBSOCKET_KEY, SEC_WEBSOCKET_PROTOCOL, SEC_WEBSOCKET_VERSION, UPGRADE};
@@ -8,6 +11,7 @@ use urlencoding::encode;
 
 use crate::util::api::novnc::NoVncCredentials;
 use crate::util::api::xtermjs::XTermjsCredentials;
+use crate::util::crypto::rustls::NoCertificateVerification;
 
 pub enum Credentials {
     XTerm(XTermjsCredentials),
@@ -29,13 +33,25 @@ pub fn build_ws_request(credentials: Credentials) -> (Request, Connector) {
         let do_not_verify_tls = var("DANGEROUS_DISABLE_TLS_VERIFICATION")
             .unwrap_or("false".to_string()).parse::<bool>().unwrap_or(false);
         debug!("TLS verification disabled: {do_not_verify_tls}", do_not_verify_tls = do_not_verify_tls);
-        let tls_connector = TlsConnector::builder()
-            .danger_accept_invalid_hostnames(do_not_verify_tls)
-            .danger_accept_invalid_certs(do_not_verify_tls)
-            .build()
-            .unwrap();
+
+        let tls_connector = if do_not_verify_tls {
+            ClientConfig::builder()
+                .dangerous()
+                .with_custom_certificate_verifier(Arc::new(NoCertificateVerification {}))
+                .with_no_client_auth()
+        } else {
+            let mut roots = RootCertStore::empty();
+            for cert in load_native_certs().expect("Failed to load native certs") {
+                roots.add(cert).unwrap();
+            }
+
+            ClientConfig::builder()
+                .with_root_certificates(roots)
+                .with_no_client_auth()
+        };
+
+        let tls_connector = Connector::Rustls(Arc::new(tls_connector));
         debug!("TLS connector constructed");
-        let tls_connector = Connector::NativeTls(tls_connector);
 
         match credentials {
             Credentials::NoVnc(credentials) => {

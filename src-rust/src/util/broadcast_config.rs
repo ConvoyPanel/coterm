@@ -1,6 +1,6 @@
 use std::path::PathBuf;
-use dotenv::var;
 
+use dotenv::var;
 use tower_http::services::ServeDir;
 use tracing::warn;
 

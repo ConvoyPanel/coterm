@@ -1,9 +1,7 @@
 use axum::extract::ws::{CloseFrame as ACloseFrame, Message as AMessage};
-use tokio_tungstenite::{
-    tungstenite::{
-        Message as TMessage, protocol::CloseFrame as TCloseFrame,
-        protocol::frame::coding::CloseCode as TCloseCode,
-    },
+use tokio_tungstenite::tungstenite::{
+    Message as TMessage, protocol::CloseFrame as TCloseFrame,
+    protocol::frame::coding::CloseCode as TCloseCode,
 };
 
 pub fn convert_axum_to_tungstenite(axum_msg: AMessage) -> TMessage {

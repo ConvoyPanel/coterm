@@ -1,11 +1,11 @@
 use std::net::SocketAddr;
 
 use dotenv::{dotenv, var};
+use tokio::signal::unix::{signal, SignalKind};
 use tracing::info;
 
 use crate::app::create_app;
 use crate::util::broadcast_config::show_brand_message;
-use tokio::signal::unix::{signal, SignalKind};
 
 mod util;
 mod app;

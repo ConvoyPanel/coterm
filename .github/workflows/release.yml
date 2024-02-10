@@ -44,6 +44,8 @@ jobs:
         uses: docker/metadata-action@v4
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          flavor: |
+            latest=${{ !contains(github.ref, 'beta') || !contains(github.ref, 'alpha') || !contains(github.ref, 'rc') }}
           tags: |
             type=ref,event=branch
             type=ref,event=pr
@@ -87,4 +89,4 @@ jobs:
           name: ${{ steps.extract_changelog.outputs.version_name }}
           body_path: ./RELEASE_CHANGELOG
           draft: true
-          prerelease: ${{ contains(github.ref, 'beta') || contains(github.ref, 'alpha') }}
+          prerelease: ${{ contains(github.ref, 'beta') || contains(github.ref, 'alpha') || contains(github.ref, 'rc') }}

@@ -4,6 +4,13 @@ This file is a running track of new features and fixes to each version of the pa
 
 This project follows [Semantic Versioning](http://semver.org) guidelines.
 
+## v2.3.2-rc.1
+
+### Changes
+
+- Switched from NativeTLS to Rustls for TLS verification. Should hopefully resolve the issue with Coterm exiting with no
+  errors.
+
 ## v2.3.1
 
 ### Changes

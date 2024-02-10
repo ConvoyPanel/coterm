@@ -1,6 +1,6 @@
 use std::collections::HashMap;
-use dotenv::var;
 
+use dotenv::var;
 use reqwest::Client;
 use serde::Deserialize;
 use serde_json::Value;
