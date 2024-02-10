@@ -45,7 +45,7 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           flavor: |
-            latest=${{ !contains(github.ref, 'beta') || !contains(github.ref, 'alpha') || !contains(github.ref, 'rc') }}
+            latest=${{ !contains(github.ref, 'beta') && !contains(github.ref, 'alpha') && !contains(github.ref, 'rc') }}
           tags: |
             type=ref,event=branch
             type=ref,event=pr
@@ -58,6 +58,7 @@ jobs:
           REF: ${{ github.ref }}
         run: |
           sed -n "/^## ${REF:10}/,/^## /{/^## /b;p}" CHANGELOG.md > ./RELEASE_CHANGELOG
+          echo -e "\n#### Pull This Image\n\n\`\`\`\ndocker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${REF:11}\n\`\`\`\n" >> ./RELEASE_CHANGELOG
           echo "version_name=${REF:10}" >> $GITHUB_OUTPUT
 
       - name: Log in to GitHub Container Registry
