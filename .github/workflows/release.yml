@@ -57,8 +57,10 @@ jobs:
         env:
           REF: ${{ github.ref }}
         run: |
+          REGISTRY_LOWER=$(echo "${{ env.REGISTRY }}" | tr '[:upper:]' '[:lower:]')
+          IMAGE_NAME_LOWER=$(echo "${{ env.IMAGE_NAME }}" | tr '[:upper:]' '[:lower:]')
           sed -n "/^## ${REF:10}/,/^## /{/^## /b;p}" CHANGELOG.md > ./RELEASE_CHANGELOG
-          echo -e "\n#### Pull This Image\n\n\`\`\`\ndocker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${REF:11}\n\`\`\`\n" >> ./RELEASE_CHANGELOG
+          echo -e "\n#### Pull This Image\n\n\`\`\`\ndocker pull $REGISTRY_LOWER/$IMAGE_NAME_LOWER:${REF:11}\n\`\`\`\n" >> ./RELEASE_CHANGELOG
           echo "version_name=${REF:10}" >> $GITHUB_OUTPUT
 
       - name: Log in to GitHub Container Registry
