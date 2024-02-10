@@ -10,6 +10,7 @@ This project follows [Semantic Versioning](http://semver.org) guidelines.
 
 - Switched from NativeTLS to Rustls for TLS verification. Should hopefully resolve the issue with Coterm exiting with no
   errors.
+- Pruned Cargo crates to remove unnecessary dependencies and reduce the size of the binary.
 
 ## v2.3.1
 
