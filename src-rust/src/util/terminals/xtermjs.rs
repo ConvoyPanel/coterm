@@ -4,8 +4,8 @@ use tokio::join;
 use tokio_tungstenite::tungstenite::Message as TMessage;
 use tracing::{debug, debug_span, error, Instrument};
 
-use crate::util::api::proxmox::{build_ws_request, Credentials};
-use crate::util::api::xtermjs::create_xtermjs_credentials;
+use crate::api::proxmox::{build_ws_request, Credentials};
+use crate::api::xtermjs::create_xtermjs_credentials;
 use crate::util::websocket::{convert_axum_to_tungstenite, convert_tungstenite_to_axum};
 
 pub async fn start_xtermjs_proxy(server_uuid: String, client_ws: WebSocket) {

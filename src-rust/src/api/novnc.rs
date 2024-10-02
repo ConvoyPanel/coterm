@@ -6,7 +6,7 @@ use serde::Deserialize;
 use serde_json::Value;
 use tracing::{debug, debug_span, Instrument};
 
-use crate::util::api::http::get_headers_with_authorization;
+use crate::api::http::get_headers_with_authorization;
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct NoVncCredentials {

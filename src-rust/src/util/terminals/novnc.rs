@@ -10,8 +10,8 @@ use tokio::sync::Mutex;
 use tokio_tungstenite::{MaybeTlsStream, tungstenite::Message as TMessage, WebSocketStream};
 use tracing::{debug, debug_span, error, Instrument};
 
-use crate::util::api::novnc::{create_novnc_credentials, NoVncCredentials};
-use crate::util::api::proxmox::{build_ws_request, Credentials};
+use crate::api::novnc::{create_novnc_credentials, NoVncCredentials};
+use crate::api::proxmox::{build_ws_request, Credentials};
 use crate::util::crypto::des;
 use crate::util::websocket::{convert_axum_to_tungstenite, convert_tungstenite_to_axum};
 

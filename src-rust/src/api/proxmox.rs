@@ -9,8 +9,8 @@ use tokio_tungstenite::tungstenite::http::header::{CONNECTION, SEC_WEBSOCKET_KEY
 use tracing::{debug, debug_span};
 use urlencoding::encode;
 
-use crate::util::api::novnc::NoVncCredentials;
-use crate::util::api::xtermjs::XTermjsCredentials;
+use crate::api::novnc::NoVncCredentials;
+use crate::api::xtermjs::XTermjsCredentials;
 use crate::util::crypto::rustls::NoCertificateVerification;
 
 pub enum Credentials {

@@ -10,6 +10,7 @@ use crate::util::broadcast_config::show_brand_message;
 mod util;
 mod app;
 mod routes;
+pub mod api;
 
 #[tokio::main]
 async fn main() {
@@ -29,7 +30,7 @@ async fn main() {
     info!("Convoy terminal is ready at {addr}");
 
     let server = async {
-        axum::serve(listener, create_app().await.into_make_service()).await.unwrap();
+        axum::serve(listener, create_app().into_make_service()).await.unwrap();
     };
 
     let mut signal_stream = signal(SignalKind::terminate()).unwrap();

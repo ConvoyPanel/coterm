@@ -32,7 +32,7 @@ async fn start_ws_session(ws: WebSocketUpgrade, State(state): State<AppState>, j
             status: StatusCode::UNAUTHORIZED,
             message: "Your cookies is missing a \"token\" key-value pair.",
         })?;
-    let decoding_key = DecodingKey::from_secret(state.token.as_ref());
+    let decoding_key = DecodingKey::from_secret(state.token_secret.as_ref());
 
     return if let Ok(jwt) = decode::<Claims>(&jwt, &decoding_key, &Validation::default()) {
         match jwt.claims.console_type.as_str() {
